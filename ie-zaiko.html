@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>家庭用在庫管理</title>
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<!-- ZXing: クワイエットゾーン狭い・背景暗いバーコード補助デコーダー -->
+<script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f7f7f7;color:#222}
@@ -77,9 +79,24 @@ h1{font-size:17px;font-weight:700;padding:12px 0 10px;text-align:center;color:#2
 .dot.spin{background:#EF9F27;animation:pulse 1s infinite}
 .dot.err{background:#e24b4a}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
-#reader{width:100%;margin-bottom:8px;border-radius:10px;overflow:hidden;display:none}
-#reader__dashboard{display:none !important}
-.stop-btn{width:100%;padding:10px;font-size:13px;font-weight:500;border-radius:8px;border:1px solid #fcc;background:#fff0f0;color:#e24b4a;cursor:pointer;margin-bottom:10px;display:none}
+/* カメラビューア */
+.cam-viewer{position:relative;width:100%;border-radius:10px;overflow:hidden;background:#000;margin-bottom:0;display:none}
+#qr-reader{width:100%!important;border:none!important;background:#000;position:relative}
+#qr-reader video{width:100%!important;height:auto!important;object-fit:cover;display:block!important}
+#qr-reader canvas{display:block!important;width:100%!important;height:auto!important}
+#qr-reader__dashboard{display:none!important}
+#qr-reader__status_span{display:none!important}
+#qr-reader__scan_region{border:none!important;position:relative}
+#qr-reader__scan_region img{display:none!important}
+#qr-reader__scan_region::before{content:'';position:absolute;inset:0;border:2px solid rgba(232,117,42,0.6);box-shadow:inset 0 0 0 2px rgba(232,117,42,0.3);pointer-events:none;z-index:10}
+#qr-reader__scan_region::after{content:'';position:absolute;inset:0;background:linear-gradient(to right,#E8752A 3px,transparent 3px) 0 0/24px 24px no-repeat,linear-gradient(to bottom,#E8752A 3px,transparent 3px) 0 0/24px 24px no-repeat,linear-gradient(to left,#E8752A 3px,transparent 3px) 100% 0/24px 24px no-repeat,linear-gradient(to bottom,#E8752A 3px,transparent 3px) 100% 0/24px 24px no-repeat,linear-gradient(to right,#E8752A 3px,transparent 3px) 0 100%/24px 24px no-repeat,linear-gradient(to top,#E8752A 3px,transparent 3px) 0 100%/24px 24px no-repeat,linear-gradient(to left,#E8752A 3px,transparent 3px) 100% 100%/24px 24px no-repeat,linear-gradient(to top,#E8752A 3px,transparent 3px) 100% 100%/24px 24px no-repeat;pointer-events:none;z-index:10}
+.scan-overlay{position:absolute;inset:0;pointer-events:none;z-index:2}
+.scan-frame,.scan-corner-bl,.scan-corner-br{display:none}
+.scan-line{position:absolute;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent 5%,#E8752A 50%,transparent 95%);z-index:11;pointer-events:none}
+.cam-status{position:absolute;bottom:44px;left:0;right:0;text-align:center;font-size:12px;color:rgba(255,255,255,.9);font-weight:500;text-shadow:0 1px 3px rgba(0,0,0,.7);z-index:12}
+.stop-btn{position:absolute;bottom:0;left:0;right:0;padding:9px;font-size:13px;font-weight:600;border:none;border-radius:0;background:rgba(0,0,0,.55);color:#ff6b6b;cursor:pointer;z-index:13;display:none;-webkit-tap-highlight-color:transparent}
+/* 写真撮影フォールバック */
+.photo-label{display:block;width:100%;padding:12px;font-size:14px;font-weight:600;border-radius:10px;border:1px solid #fddcb8;background:#fff8f0;color:#d4600a;cursor:pointer;text-align:center}
 .chevron{transition:transform .2s;font-size:12px;color:#aaa}
 .chevron.open{transform:rotate(180deg)}
 .alert-badge{background:#ffe0e0;color:#e24b4a;font-size:10px;font-weight:600;padding:2px 6px;border-radius:10px;margin-left:4px}
@@ -114,8 +131,24 @@ h1{font-size:17px;font-weight:700;padding:12px 0 10px;text-align:center;color:#2
   <div id="tab-scan">
     <div class="card">
       <div class="section-label">JANコード</div>
-      <div id="reader"></div>
-      <button class="stop-btn" id="stop-btn" onclick="stopCam()">■ カメラを停止</button>
+      <!-- カメラビューア -->
+      <div class="cam-viewer" id="cam-viewer">
+        <div id="qr-reader"></div>
+        <div class="scan-overlay">
+          <div class="scan-frame"><div class="scan-corner-bl"></div><div class="scan-corner-br"></div></div>
+          <div class="scan-line"></div>
+        </div>
+        <div class="cam-status" id="cam-status">バーコードを枠内に合わせてください</div>
+        <button class="stop-btn" id="stop-btn" onclick="stopCam()">■ カメラを停止</button>
+      </div>
+      <!-- 写真撮影フォールバック -->
+      <div id="photo-fallback" style="display:none;margin-bottom:10px">
+        <div style="font-size:12px;color:#888;margin-bottom:6px;text-align:center">写真でバーコードを読み取ります</div>
+        <label class="photo-label">
+          📸 写真を撮ってスキャン
+          <input type="file" accept="image/*" capture="environment" id="photo-input" style="display:none" onchange="scanPhotoFile(this)"/>
+        </label>
+      </div>
       <div class="scan-area">
         <input type="text" id="jan-input" placeholder="4901234567890" inputmode="numeric"
           oninput="onJanInput(this.value)" onkeydown="if(event.key==='Enter')lookupJan()"/>
@@ -238,6 +271,7 @@ h1{font-size:17px;font-weight:700;padding:12px 0 10px;text-align:center;color:#2
   </div>
 </div>
 
+<div id="qr-reader-photo" style="display:none"></div>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -631,48 +665,176 @@ async function deleteProduct(jan){
   }
 }
 
+// ── カメラ変数 ────────────────────────────────────────────────
+let lastCode='',lastCodeTime=0;
+
 async function startCam(){
-  document.getElementById('reader').style.display='block';
+  document.getElementById('photo-fallback').style.display='none';
+  const viewer=document.getElementById('cam-viewer');
+  viewer.style.display='block';
+  viewer.style.marginBottom='10px';
   document.getElementById('stop-btn').style.display='block';
   document.getElementById('cam-btn').style.display='none';
+  document.getElementById('cam-status').textContent='カメラを起動中...';
   try{
-    html5QrCode=new Html5Qrcode('reader');
-    const devices=await Html5Qrcode.getCameras();
-    if(!devices||devices.length===0){toast('カメラが見つかりません','err');stopCam();return;}
-    const backCam=devices.find(d=>
-      d.label.toLowerCase().includes('back')||
-      d.label.toLowerCase().includes('rear')||
-      d.label.toLowerCase().includes('environment'));
-    const camId=backCam?backCam.id:devices[devices.length-1].id;
-    await html5QrCode.start(camId,
-      {fps:30,qrbox:{width:300,height:150},aspectRatio:1.7,
-       experimentalFeatures:{useBarCodeDetectorIfSupported:true},
-       formatsToSupport:[
-         Html5QrcodeSupportedFormats.EAN_13,
-         Html5QrcodeSupportedFormats.EAN_8,
-         Html5QrcodeSupportedFormats.UPC_A,
-         Html5QrcodeSupportedFormats.UPC_E,
-         Html5QrcodeSupportedFormats.CODE_128,
-       ]},
-      (code)=>{
-        document.getElementById('jan-input').value=code;
-        stopCam();lookupJan();
-        toast('スキャン完了: '+code,'in');
-      },()=>{});
+    html5QrCode=new Html5Qrcode('qr-reader');
+    const formats=[
+      Html5QrcodeSupportedFormats.EAN_13,Html5QrcodeSupportedFormats.EAN_8,
+      Html5QrcodeSupportedFormats.UPC_A,Html5QrcodeSupportedFormats.UPC_E,
+      Html5QrcodeSupportedFormats.CODE_128,Html5QrcodeSupportedFormats.CODE_39,
+      Html5QrcodeSupportedFormats.QR_CODE,Html5QrcodeSupportedFormats.DATA_MATRIX,
+    ];
+    const viewerW=viewer.offsetWidth||320;
+    const qbW=Math.floor(viewerW*0.88), qbH=Math.floor(viewerW*0.45);
+    const isIOS=/iPhone|iPad|iPod/i.test(navigator.userAgent);
+    const camConfig={
+      fps:15,
+      qrbox:{width:qbW,height:qbH},
+      formatsToSupport:formats,
+      experimentalFeatures:{useBarCodeDetectorIfSupported:!isIOS},
+      videoConstraints:{facingMode:'environment',width:{ideal:isIOS?1920:1280},height:{ideal:isIOS?1080:720}}
+    };
+    const onDetected=(code)=>{
+      const now=Date.now();
+      if(code===lastCode&&now-lastCodeTime<2500) return;
+      lastCode=code; lastCodeTime=now;
+      document.getElementById('jan-input').value=code;
+      stopCam(); lookupJan();
+      toast('✓ スキャン完了','in');
+    };
+    await html5QrCode.start({facingMode:'environment'},camConfig,onDetected,()=>{});
+    document.getElementById('cam-status').textContent='バーコードを枠内に合わせてください';
+    positionScanLine();
+    startAssistScan(onDetected);
   }catch(e){
-    toast('カメラを起動できませんでした','err');stopCam();
+    const msg=e.name==='NotAllowedError'?'カメラのアクセスを許可してください':
+              e.name==='NotFoundError'?'カメラが見つかりません':'カメラを起動できませんでした';
+    toast(msg,'err'); stopCam();
   }
 }
 
 async function stopCam(){
+  if(window._scanLineTimer){clearInterval(window._scanLineTimer);window._scanLineTimer=null;}
+  if(window._assistTimer){clearInterval(window._assistTimer);window._assistTimer=null;}
   if(html5QrCode){
-    try{if(html5QrCode.getState()===2)await html5QrCode.stop();}catch(e){}
+    try{
+      if(html5QrCode.getState()===Html5QrcodeScannerState.SCANNING||
+         html5QrCode.getState()===Html5QrcodeScannerState.PAUSED){
+        await html5QrCode.stop();
+      }
+    }catch(e){}
     html5QrCode=null;
   }
-  document.getElementById('reader').style.display='none';
-  document.getElementById('reader').innerHTML='';
+  document.getElementById('qr-reader').innerHTML='';
+  const viewer=document.getElementById('cam-viewer');
+  viewer.style.display='none';
+  viewer.style.marginBottom='0';
   document.getElementById('stop-btn').style.display='none';
-  document.getElementById('cam-btn').style.display='block';
+  if(document.getElementById('photo-fallback').style.display==='none'){
+    document.getElementById('cam-btn').style.display='block';
+  }
+}
+
+function positionScanLine(){
+  setTimeout(()=>{
+    const scanRegion=document.getElementById('qr-reader__scan_region');
+    const scanLine=document.querySelector('.scan-line');
+    const viewer=document.getElementById('cam-viewer');
+    if(!scanRegion||!scanLine||!viewer) return;
+    const rr=scanRegion.getBoundingClientRect(), vr=viewer.getBoundingClientRect();
+    const top=rr.top-vr.top, left=rr.left-vr.left;
+    const width=rr.width, height=rr.height;
+    scanLine.style.cssText=`position:absolute;left:${left}px;width:${width}px;animation:none;top:${top}px`;
+    let dir=1, pos=top+4;
+    const bottom=top+height-4;
+    if(window._scanLineTimer) clearInterval(window._scanLineTimer);
+    window._scanLineTimer=setInterval(()=>{
+      pos+=dir*2;
+      if(pos>=bottom){pos=bottom;dir=-1;}
+      if(pos<=top+4){pos=top+4;dir=1;}
+      scanLine.style.top=pos+'px';
+    },16);
+  },600);
+}
+
+function startAssistScan(onDetected){
+  if(!window.ZXing) return;
+  let hints,reader;
+  try{
+    hints=new Map();
+    hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS,[
+      ZXing.BarcodeFormat.EAN_13,ZXing.BarcodeFormat.EAN_8,
+      ZXing.BarcodeFormat.UPC_A,ZXing.BarcodeFormat.UPC_E,
+      ZXing.BarcodeFormat.CODE_128,
+    ]);
+    hints.set(ZXing.DecodeHintType.TRY_HARDER,true);
+    reader=new ZXing.MultiFormatReader();
+    reader.setHints(hints);
+  }catch(e){return;}
+  const offscreen=document.createElement('canvas');
+  const ctx=offscreen.getContext('2d');
+  let busy=false;
+  window._assistTimer=setInterval(async()=>{
+    if(busy||!html5QrCode) return;
+    const video=document.querySelector('#qr-reader video');
+    if(!video||video.readyState<2) return;
+    busy=true;
+    try{
+      const vw=video.videoWidth, vh=video.videoHeight;
+      if(!vw||!vh){busy=false;return;}
+      const viewerW=document.getElementById('cam-viewer').offsetWidth||320;
+      const sw=vw, sh=Math.floor(vh*0.5);
+      const sy=Math.floor((vh-sh)/2);
+      const pad=40;
+      offscreen.width=sw+pad*2; offscreen.height=sh+pad*2;
+      ctx.fillStyle='#ffffff';
+      ctx.fillRect(0,0,offscreen.width,offscreen.height);
+      ctx.drawImage(video,0,sy,sw,sh,pad,pad,sw,sh);
+      const imgData=ctx.getImageData(0,0,offscreen.width,offscreen.height);
+      const d=imgData.data;
+      for(let i=0;i<d.length;i+=4){
+        const gray=0.299*d[i]+0.587*d[i+1]+0.114*d[i+2];
+        const c=Math.min(255,Math.max(0,(gray-128)*2.0+128));
+        d[i]=d[i+1]=d[i+2]=c;
+      }
+      ctx.putImageData(imgData,0,0);
+      const tryDecode=()=>{
+        try{
+          const id=ctx.getImageData(0,0,offscreen.width,offscreen.height);
+          const lum=new ZXing.RGBLuminanceSource(id.data,offscreen.width,offscreen.height);
+          const bmp=new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(lum));
+          return reader.decode(bmp).getText();
+        }catch(e){return null;}
+      };
+      let code=tryDecode();
+      if(!code){
+        const id2=ctx.getImageData(0,0,offscreen.width,offscreen.height);
+        const d2=id2.data;
+        for(let i=0;i<d2.length;i+=4){d2[i]=255-d2[i];d2[i+1]=255-d2[i+1];d2[i+2]=255-d2[i+2];}
+        ctx.putImageData(id2,0,0);
+        code=tryDecode();
+      }
+      if(code&&code.trim()) onDetected(code);
+    }catch(e){}
+    busy=false;
+  },700);
+}
+
+async function scanPhotoFile(input){
+  const file=input.files[0];
+  if(!file) return;
+  try{
+    const scanner=new Html5Qrcode('qr-reader-photo');
+    const result=await scanner.scanFileV2(file,true);
+    input.value='';
+    if(result&&result.decodedText){
+      document.getElementById('jan-input').value=result.decodedText;
+      lookupJan(); toast('✓ スキャン完了','in');
+    }
+  }catch(e){
+    input.value='';
+    toast('読み取れませんでした。もう一度撮影してください','err');
+  }
 }
 
 loadAll();

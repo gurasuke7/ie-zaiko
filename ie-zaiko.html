@@ -14,7 +14,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 h1{font-size:17px;font-weight:700;padding:12px 0 10px;text-align:center;color:#2d2d2d}
 .tabs{display:flex;border:1px solid #ddd;border-radius:12px;overflow:hidden;margin-bottom:14px;background:#fff}
 .tab{flex:1;padding:9px 2px;font-size:12px;font-weight:500;text-align:center;cursor:pointer;background:#fff;color:#888;border:none}
-.tab.active{background:#fff8f0;color:#d4600a}
+.tab.active{background:#eef6f2;color:#0F6E56}
 .card{background:#fff;border:1px solid #e5e5e5;border-radius:12px;padding:16px;margin-bottom:12px}
 .section-label{font-size:12px;color:#888;margin-bottom:6px;font-weight:500}
 .scan-area{display:flex;gap:8px;margin-bottom:10px}
@@ -24,30 +24,30 @@ h1{font-size:17px;font-weight:700;padding:12px 0 10px;text-align:center;color:#2
 .qty-row label{font-size:13px;color:#888;min-width:52px}
 .qty-row input{width:90px;font-size:16px;font-weight:600;text-align:center;padding:8px;border:1px solid #ddd;border-radius:8px;outline:none}
 .action-row{display:flex;gap:10px}
-.btn-in{flex:1;padding:13px;font-size:15px;font-weight:600;border-radius:10px;border:none;cursor:pointer;background:#E8752A;color:#fff}
-.btn-out{flex:1;padding:13px;font-size:15px;font-weight:600;border-radius:10px;border:none;cursor:pointer;background:#5B8FD4;color:#fff}
+.btn-in{flex:1;padding:13px;font-size:15px;font-weight:600;border-radius:10px;border:none;cursor:pointer;background:#1D9E75;color:#fff}
+.btn-out{flex:1;padding:13px;font-size:15px;font-weight:600;border-radius:10px;border:none;cursor:pointer;background:#378ADD;color:#fff}
 .btn-in:active{opacity:.85}.btn-out:active{opacity:.85}
 .btn-in:disabled,.btn-out:disabled{opacity:.4;cursor:not-allowed}
-.preview{padding:12px;background:#fff8f0;border:1px solid #fddcb8;border-radius:8px;margin-bottom:10px;display:none}
+.preview{padding:12px;background:#eef6f2;border:1px solid #b2ddd0;border-radius:8px;margin-bottom:10px;display:none}
 .pname{font-weight:600;font-size:15px;color:#2d2d2d}
 .pinfo{color:#888;font-size:12px;margin-top:2px}
 .pstock{font-size:13px;margin-top:6px}
-.pstock .num{font-weight:700;color:#E8752A}
+.pstock .num{font-weight:700;color:#1D9E75}
 .pitem-total{font-size:13px;margin-top:4px;color:#555}
-.pitem-total .num{font-weight:700;color:#E8752A}
-.pdays{font-size:13px;margin-top:6px;padding:6px 10px;background:#fff;border-radius:8px;border:1px solid #fddcb8}
+.pitem-total .num{font-weight:700;color:#1D9E75}
+.pdays{font-size:13px;margin-top:6px;padding:6px 10px;background:#fff;border-radius:8px;border:1px solid #b2ddd0}
 .pdays .days-num{font-weight:700;color:#2d7dd2;font-size:15px}
 .pdays .days-label{color:#888;font-size:12px}
 .alert-low{color:#e24b4a;font-size:12px;margin-top:6px;font-weight:500;padding:6px 10px;background:#fff0f0;border-radius:8px}
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);padding:11px 22px;border-radius:24px;font-size:14px;font-weight:500;color:#fff;opacity:0;transition:opacity .25s;pointer-events:none;white-space:nowrap;z-index:999}
-.toast.in{background:#E8752A}.toast.out{background:#5B8FD4}.toast.err{background:#e24b4a}.toast.show{opacity:1}
+.toast.in{background:#1D9E75}.toast.out{background:#378ADD}.toast.err{background:#e24b4a}.toast.show{opacity:1}
 .category-section{margin-bottom:4px}
 .category-title{font-size:13px;font-weight:700;color:#888;margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;gap:6px}
 .item-group{background:#fff;border:1px solid #eee;border-radius:10px;margin-bottom:8px;overflow:hidden}
 .item-header{display:flex;align-items:center;padding:10px 12px;cursor:pointer;gap:8px}
 .item-name{flex:1;font-weight:600;font-size:14px}
 .item-summary{text-align:right}
-.item-total{font-size:13px;font-weight:600;color:#E8752A}
+.item-total{font-size:13px;font-weight:600;color:#1D9E75}
 .item-total.low{color:#e24b4a}
 .item-orderline{font-size:11px;color:#aaa;margin-top:1px}
 .item-days{font-size:11px;color:#2d7dd2;margin-top:1px}
@@ -60,18 +60,18 @@ h1{font-size:17px;font-weight:700;padding:12px 0 10px;text-align:center;color:#2
 .log-item{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #f0f0f0;font-size:13px}
 .log-item:last-child{border-bottom:none}
 .badge{padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600}
-.badge.in{background:#fdebd8;color:#c25a0a}.badge.out{background:#dce9f8;color:#2c5fa1}
+.badge.in{background:#e1f5ee;color:#0F6E56}.badge.out{background:#e6f1fb;color:#185FA5}
 .log-info{flex:1}.log-name{font-weight:500}.log-meta{color:#888;font-size:12px;margin-top:1px}
-.log-qty{font-weight:600;font-size:14px}.log-qty.in{color:#E8752A}.log-qty.out{color:#5B8FD4}
+.log-qty{font-weight:600;font-size:14px}.log-qty.in{color:#1D9E75}.log-qty.out{color:#378ADD}
 .reg-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
 .reg-grid>div,.reg-full{display:flex;flex-direction:column;gap:4px}
 .reg-full{margin-bottom:8px}
 .reg-grid label,.reg-full label{font-size:12px;color:#888}
 .reg-grid input,.reg-grid select,.reg-full input,.reg-full select{padding:8px 10px;border:1px solid #ddd;border-radius:8px;font-size:14px;outline:none;background:#fff}
-.reg-btn{width:100%;padding:12px;font-size:14px;font-weight:600;border-radius:10px;border:none;cursor:pointer;background:#E8752A;color:#fff;margin-top:6px}
+.reg-btn{width:100%;padding:12px;font-size:14px;font-weight:600;border-radius:10px;border:none;cursor:pointer;background:#1D9E75;color:#fff;margin-top:6px}
 .unit-toggle{display:flex;gap:8px;margin-bottom:8px}
 .unit-btn{flex:1;padding:8px;font-size:13px;border-radius:8px;border:1px solid #ddd;background:#f5f5f5;color:#888;cursor:pointer;font-weight:500}
-.unit-btn.active{background:#fff8f0;border-color:#E8752A;color:#E8752A}
+.unit-btn.active{background:#eef6f2;border-color:#1D9E75;color:#1D9E75}
 .loading{text-align:center;padding:20px;color:#aaa;font-size:13px}
 .empty{text-align:center;padding:28px;color:#aaa;font-size:13px}
 .sync-bar{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:#fff;border:1px solid #e5e5e5;border-radius:10px;margin-bottom:12px;font-size:12px;color:#666}
@@ -88,17 +88,17 @@ h1{font-size:17px;font-weight:700;padding:12px 0 10px;text-align:center;color:#2
 #qr-reader__status_span{display:none!important}
 #qr-reader__scan_region{border:none!important;position:relative}
 #qr-reader__scan_region img{display:none!important}
-#qr-reader__scan_region::before{content:'';position:absolute;inset:0;border:2px solid rgba(232,117,42,0.6);box-shadow:inset 0 0 0 2px rgba(232,117,42,0.3);pointer-events:none;z-index:10}
-#qr-reader__scan_region::after{content:'';position:absolute;inset:0;background:linear-gradient(to right,#E8752A 3px,transparent 3px) 0 0/24px 24px no-repeat,linear-gradient(to bottom,#E8752A 3px,transparent 3px) 0 0/24px 24px no-repeat,linear-gradient(to left,#E8752A 3px,transparent 3px) 100% 0/24px 24px no-repeat,linear-gradient(to bottom,#E8752A 3px,transparent 3px) 100% 0/24px 24px no-repeat,linear-gradient(to right,#E8752A 3px,transparent 3px) 0 100%/24px 24px no-repeat,linear-gradient(to top,#E8752A 3px,transparent 3px) 0 100%/24px 24px no-repeat,linear-gradient(to left,#E8752A 3px,transparent 3px) 100% 100%/24px 24px no-repeat,linear-gradient(to top,#E8752A 3px,transparent 3px) 100% 100%/24px 24px no-repeat;pointer-events:none;z-index:10}
+#qr-reader__scan_region::before{content:'';position:absolute;inset:0;border:2px solid rgba(29,158,117,0.6);box-shadow:inset 0 0 0 2px rgba(29,158,117,0.3);pointer-events:none;z-index:10}
+#qr-reader__scan_region::after{content:'';position:absolute;inset:0;background:linear-gradient(to right,#1D9E75 3px,transparent 3px) 0 0/24px 24px no-repeat,linear-gradient(to bottom,#1D9E75 3px,transparent 3px) 0 0/24px 24px no-repeat,linear-gradient(to left,#1D9E75 3px,transparent 3px) 100% 0/24px 24px no-repeat,linear-gradient(to bottom,#1D9E75 3px,transparent 3px) 100% 0/24px 24px no-repeat,linear-gradient(to right,#1D9E75 3px,transparent 3px) 0 100%/24px 24px no-repeat,linear-gradient(to top,#1D9E75 3px,transparent 3px) 0 100%/24px 24px no-repeat,linear-gradient(to left,#1D9E75 3px,transparent 3px) 100% 100%/24px 24px no-repeat,linear-gradient(to top,#1D9E75 3px,transparent 3px) 100% 100%/24px 24px no-repeat;pointer-events:none;z-index:10}
 .scan-overlay{position:absolute;inset:0;pointer-events:none;z-index:2}
 .scan-frame,.scan-corner-bl,.scan-corner-br{display:none}
-.scan-line{position:absolute;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent 5%,#E8752A 50%,transparent 95%);z-index:11;pointer-events:none}
+.scan-line{position:absolute;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent 5%,#1D9E75 50%,transparent 95%);z-index:11;pointer-events:none}
 .cam-status{position:absolute;bottom:44px;left:0;right:0;text-align:center;font-size:12px;color:rgba(255,255,255,.9);font-weight:500;text-shadow:0 1px 3px rgba(0,0,0,.7);z-index:12}
 .stop-btn{position:absolute;bottom:0;left:0;right:0;padding:9px;font-size:13px;font-weight:600;border:none;border-radius:0;background:rgba(0,0,0,.55);color:#ff6b6b;cursor:pointer;z-index:13;display:none;-webkit-tap-highlight-color:transparent}
 /* 写真撮影フォールバック */
-.photo-label{display:block;width:100%;padding:12px;font-size:14px;font-weight:600;border-radius:10px;border:1px solid #fddcb8;background:#fff8f0;color:#d4600a;cursor:pointer;text-align:center}
+.photo-label{display:block;width:100%;padding:12px;font-size:14px;font-weight:600;border-radius:10px;border:1px solid #b2ddd0;background:#eef6f2;color:#0F6E56;cursor:pointer;text-align:center}
 /* 商品一覧から選択ボタン */
-.pick-btn{width:100%;padding:10px;font-size:13px;font-weight:500;border-radius:8px;border:1px solid #fddcb8;background:#fff8f0;color:#d4600a;cursor:pointer;margin-bottom:12px;text-align:center}
+.pick-btn{width:100%;padding:10px;font-size:13px;font-weight:500;border-radius:8px;border:1px solid #b2ddd0;background:#eef6f2;color:#0F6E56;cursor:pointer;margin-bottom:12px;text-align:center}
 .pick-btn:active{opacity:.8}
 /* 選択中商品ボックス */
 #selected-product-box{margin-bottom:12px;padding:12px 14px;border-radius:10px;border:2px solid #e0e0e0;background:#fafafa}
@@ -113,17 +113,17 @@ h1{font-size:17px;font-weight:700;padding:12px 0 10px;text-align:center;color:#2
 .picker-filter-row{display:flex;align-items:center;gap:8px}
 .picker-filter-row label{font-size:12px;color:#888;min-width:30px;flex-shrink:0}
 .picker-filter-row select{flex:1;padding:7px 10px;border:1px solid #ddd;border-radius:8px;font-size:13px;background:#fff;outline:none;appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23999' d='M6 8L0 0h12z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:28px}
-.picker-filter-row select:focus{border-color:#E8752A}
+.picker-filter-row select:focus{border-color:#1D9E75}
 .picker-search{width:100%;padding:9px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px;outline:none;margin-bottom:10px}
-.picker-search:focus{border-color:#E8752A}
+.picker-search:focus{border-color:#1D9E75}
 .picker-list{overflow-y:auto;flex:1}
 .picker-item{display:flex;align-items:center;padding:10px 4px;border-bottom:1px solid #f0f0f0;cursor:pointer;gap:10px}
 .picker-item:last-child{border-bottom:none}
-.picker-item:active{background:#fff8f0}
+.picker-item:active{background:#eef6f2}
 .picker-item-info{flex:1}
 .picker-item-name{font-size:14px;font-weight:500}
 .picker-item-sub{font-size:10px;color:#aaa;margin-top:2px}
-.picker-item-stock{font-size:14px;font-weight:600;text-align:right;white-space:nowrap;color:#E8752A}
+.picker-item-stock{font-size:14px;font-weight:600;text-align:right;white-space:nowrap;color:#1D9E75}
 .picker-item-stock.low{color:#e24b4a}
 .chevron{transition:transform .2s;font-size:12px;color:#aaa}
 .chevron.open{transform:rotate(180deg)}
@@ -135,7 +135,7 @@ h1{font-size:17px;font-weight:700;padding:12px 0 10px;text-align:center;color:#2
 .group-name{flex:1;font-weight:500}
 .group-orderline{display:flex;align-items:center;gap:6px}
 .group-orderline input{width:60px;padding:5px 8px;border:1px solid #ddd;border-radius:8px;font-size:13px;text-align:center;outline:none}
-.group-orderline button{padding:5px 10px;font-size:12px;border-radius:8px;border:none;background:#E8752A;color:#fff;cursor:pointer;white-space:nowrap}
+.group-orderline button{padding:5px 10px;font-size:12px;border-radius:8px;border:none;background:#1D9E75;color:#fff;cursor:pointer;white-space:nowrap}
 </style>
 </head>
 <body>
@@ -178,7 +178,7 @@ h1{font-size:17px;font-weight:700;padding:12px 0 10px;text-align:center;color:#2
         </label>
       </div>
       <div class="scan-area">
-        <input type="text" id="jan-input" placeholder="4901234567890" inputmode="numeric"
+        <input type="text" id="jan-input" placeholder="" inputmode="numeric"
           oninput="onJanInput(this.value)" onkeydown="if(event.key==='Enter')lookupJan()"/>
         <button class="scan-btn" id="cam-btn" onclick="startCam()">📷 カメラ</button>
       </div>
@@ -229,7 +229,7 @@ h1{font-size:17px;font-weight:700;padding:12px 0 10px;text-align:center;color:#2
       <div class="section-label">新規商品登録</div>
       <div class="reg-full">
         <label>JANコード ＊</label>
-        <input type="text" id="reg-jan" placeholder="4901234567890" inputmode="numeric"/>
+        <input type="text" id="reg-jan" placeholder="" inputmode="numeric"/>
       </div>
       <div class="reg-grid">
         <div>
@@ -446,14 +446,15 @@ function getDaysInfo(item){
 
 function onJanInput(v){
   if(v.length>=8)lookupJan();
-  else document.getElementById('preview').style.display='none';
+  else{document.getElementById('preview').style.display='none';setSelectedBox(null);}
 }
 
 function lookupJan(){
   const jan=document.getElementById('jan-input').value.trim();
   const p=products.find(p=>p.jan===jan);
   const pr=document.getElementById('preview');
-  if(!p){pr.style.display='none';return;}
+  if(!p){pr.style.display='none';setSelectedBox(null);return;}
+  setSelectedBox(p);
 
   document.getElementById('prev-name').textContent=p.name;
   document.getElementById('prev-info').textContent=
@@ -908,14 +909,14 @@ function setSelectedBox(p){
   const stockEl=document.getElementById('selected-stock');
   if(p){
     nameEl.textContent=p.name;
-    nameEl.style.color='#d4600a';
+    nameEl.style.color='#0F6E56';
     const sub=[p.category,p.item].filter(Boolean).join(' › ');
     subEl.textContent=(sub?sub+'　':'')+'JAN: '+p.jan;
     subEl.style.color='#888';
     stockEl.textContent='現在庫: '+p.stock+' 個';
     stockEl.style.color='#333';
-    box.style.borderColor='#E8752A';
-    box.style.background='#fff8f0';
+    box.style.borderColor='#1D9E75';
+    box.style.background='#eef6f2';
   }else{
     nameEl.textContent='未選択';
     nameEl.style.color='#bbb';

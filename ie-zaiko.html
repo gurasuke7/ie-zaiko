@@ -60,9 +60,9 @@ h1{font-size:17px;font-weight:700;padding:12px 0 10px;text-align:center;color:#2
 .log-item{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #f0f0f0;font-size:13px}
 .log-item:last-child{border-bottom:none}
 .badge{padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600}
-.badge.in{background:#e1f5ee;color:#0F6E56}.badge.out{background:#e6f1fb;color:#185FA5}
+.badge.in{background:#e1f5ee;color:#0F6E56}.badge.out{background:#e6f1fb;color:#185FA5}.badge.adjust{background:#fef3e2;color:#b35c00}
 .log-info{flex:1}.log-name{font-weight:500}.log-meta{color:#888;font-size:12px;margin-top:1px}
-.log-qty{font-weight:600;font-size:14px}.log-qty.in{color:#1D9E75}.log-qty.out{color:#378ADD}
+.log-qty{font-weight:600;font-size:14px}.log-qty.in{color:#1D9E75}.log-qty.out{color:#378ADD}.log-qty.adjust{color:#b35c00}
 .reg-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
 .reg-grid>div,.reg-full{display:flex;flex-direction:column;gap:4px}
 .reg-full{margin-bottom:8px}
@@ -136,6 +136,26 @@ h1{font-size:17px;font-weight:700;padding:12px 0 10px;text-align:center;color:#2
 .group-orderline{display:flex;align-items:center;gap:6px}
 .group-orderline input{width:60px;padding:5px 8px;border:1px solid #ddd;border-radius:8px;font-size:13px;text-align:center;outline:none}
 .group-orderline button{padding:5px 10px;font-size:12px;border-radius:8px;border:none;background:#1D9E75;color:#fff;cursor:pointer;white-space:nowrap}
+/* 棚卸修正モーダル */
+.adjust-wrap{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;z-index:9000}
+.adjust-wrap.open{display:flex}
+.adjust-card{background:#fff;width:90%;max-width:360px;border-radius:16px;padding:22px 20px;box-shadow:0 8px 32px rgba(0,0,0,.18)}
+.adjust-title{font-size:15px;font-weight:700;color:#1a1a1a;margin-bottom:4px}
+.adjust-name{font-size:13px;color:#555;margin-bottom:14px;line-height:1.4}
+.adjust-row{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.adjust-row label{font-size:13px;color:#555;white-space:nowrap}
+.adjust-row input{flex:1;padding:10px;font-size:18px;font-weight:700;border:2px solid #ddd;border-radius:8px;text-align:center;outline:none}
+.adjust-row input:focus{border-color:#1D9E75}
+.adjust-diff{font-size:13px;color:#888;margin-bottom:16px;min-height:20px}
+.adjust-diff.plus{color:#1D9E75;font-weight:600}
+.adjust-diff.minus{color:#e24b4a;font-weight:600}
+.adjust-btns{display:flex;gap:8px}
+.adjust-btns button{flex:1;padding:11px;font-size:14px;font-weight:600;border:none;border-radius:10px;cursor:pointer}
+.adjust-cancel{background:#f0f0f0;color:#555}
+.adjust-ok{background:#1D9E75;color:#fff}
+.adjust-ok:disabled{opacity:.5}
+.adj-btn{font-size:11px;padding:3px 8px;border:1px solid #bbb;border-radius:6px;background:#f5f5f5;color:#555;cursor:pointer;margin-top:4px;white-space:nowrap}
+.adj-btn:active{opacity:.7}
 </style>
 </head>
 <body>
@@ -424,7 +444,7 @@ function filterItems(){
 
 function getGroupOrderLine(item){
   const g=groups.find(g=>g.item===item);
-  return g?parseFloat(g.orderLine)||1:1;
+  return g?(g.orderLine===''||g.orderLine===null||g.orderLine===undefined?1:parseFloat(g.orderLine)):1;
 }
 
 function calcItemTotal(item){
@@ -588,7 +608,10 @@ function renderStock(){
           <div class="product-name">${p.name}<br>
             <span style="font-size:11px;color:#bbb">${p.jan}</span>
           </div>
-          <div class="product-stock">${stockStr}</div>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px">
+            <div class="product-stock">${stockStr}</div>
+            <button class="adj-btn" onclick="openAdjust('${p.jan}')">📋 棚卸修正</button>
+          </div>
         </div>`;
       });
       html+='</div></div>';
@@ -615,12 +638,12 @@ async function loadAndRenderLog(){
     if(!logs.length){el.innerHTML='<div class="empty">履歴がまだありません</div>';return;}
     el.innerHTML=logs.map(l=>`
       <div class="log-item">
-        <span class="badge ${l.type}">${l.type==='in'?'入庫':'開封'}</span>
+        <span class="badge ${l.type}">${l.type==='in'?'入庫':l.type==='adjust'?'棚卸修正':'開封'}</span>
         <div class="log-info">
           <div class="log-name">${l.name}</div>
           <div class="log-meta">${l.category} › ${l.item}　${l.time}　在庫: ${l.stock}</div>
         </div>
-        <div class="log-qty ${l.type}">${l.type==='in'?'+':'-'}${l.qty}</div>
+        <div class="log-qty ${l.type}">${l.type==='adjust'?(String(l.qty).startsWith('-')?l.qty:'+'+l.qty):l.type==='in'?'+'+l.qty:'-'+l.qty}</div>
       </div>`).join('');
   }catch(e){
     el.innerHTML='<div class="empty">読み込みに失敗しました</div>';
@@ -656,6 +679,7 @@ function renderGroupList(){
 
 async function saveOrderLine(category,item){
   const val=document.getElementById('ol-'+category+'-'+item).value;
+  if(val===''){toast('発注ラインを入力してください','err');return;}
   setSync('loading','保存中...');
   try{
     const data=await api({action:'updateGroupOrderLine',category,item,orderLine:val});
@@ -672,7 +696,7 @@ async function saveOrderLine(category,item){
 async function addGroup(){
   const category=document.getElementById('master-category').value;
   const item=document.getElementById('master-item').value.trim();
-  const orderLine=document.getElementById('master-orderline').value||1;
+  const orderLine=document.getElementById('master-orderline').value===''?1:document.getElementById('master-orderline').value;
   if(!item){toast('品目名を入力してください','err');return;}
   setSync('loading','登録中...');
   try{
@@ -1016,6 +1040,83 @@ function selectProduct(jan){
 }
 
 loadAll();
+</script>
+
+<!-- 棚卸修正モーダル -->
+<div class="adjust-wrap" id="adjust-wrap" onclick="if(event.target===this)closeAdjust()">
+  <div class="adjust-card">
+    <div class="adjust-title">📋 棚卸修正</div>
+    <div class="adjust-name" id="adjust-name"></div>
+    <div class="adjust-row">
+      <label>実棚数</label>
+      <input type="number" id="adjust-input" min="0" value="0" oninput="updateAdjustDiff()"/>
+      <span style="font-size:13px;color:#555">個</span>
+    </div>
+    <div class="adjust-diff" id="adjust-diff"></div>
+    <div class="adjust-btns">
+      <button class="adjust-cancel" onclick="closeAdjust()">キャンセル</button>
+      <button class="adjust-ok" id="adjust-ok" onclick="doAdjust()">修正する</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── 棚卸修正 ──────────────────────────────────────────────────
+let adjustJan = null;
+
+function openAdjust(jan) {
+  const p = products.find(p => p.jan === jan);
+  if (!p) return;
+  adjustJan = jan;
+  document.getElementById('adjust-name').textContent = p.name + '　現在庫: ' + p.stock + '個';
+  document.getElementById('adjust-input').value = p.stock;
+  updateAdjustDiff();
+  document.getElementById('adjust-wrap').classList.add('open');
+  document.getElementById('adjust-input').focus();
+}
+
+function closeAdjust() {
+  adjustJan = null;
+  document.getElementById('adjust-wrap').classList.remove('open');
+}
+
+function updateAdjustDiff() {
+  if (!adjustJan) return;
+  const p = products.find(p => p.jan === adjustJan);
+  const newVal = parseInt(document.getElementById('adjust-input').value);
+  const diff = newVal - p.stock;
+  const el = document.getElementById('adjust-diff');
+  if (isNaN(newVal) || newVal < 0) {
+    el.textContent = ''; el.className = 'adjust-diff';
+    document.getElementById('adjust-ok').disabled = true;
+    return;
+  }
+  document.getElementById('adjust-ok').disabled = false;
+  if (diff === 0) { el.textContent = '変更なし'; el.className = 'adjust-diff'; }
+  else if (diff > 0) { el.textContent = '▲ +' + diff + '個 増加'; el.className = 'adjust-diff plus'; }
+  else { el.textContent = '▼ ' + diff + '個 減少'; el.className = 'adjust-diff minus'; }
+}
+
+async function doAdjust() {
+  const newVal = parseInt(document.getElementById('adjust-input').value);
+  if (isNaN(newVal) || newVal < 0 || !adjustJan) return;
+  const p = products.find(p => p.jan === adjustJan);
+  if (newVal === p.stock) { closeAdjust(); return; }
+  document.getElementById('adjust-ok').disabled = true;
+  try {
+    const data = await api({ action: 'adjust', jan: adjustJan, stock: newVal });
+    if (data.error) { toast(data.error, 'err'); }
+    else {
+      toast(p.name + ' 棚卸修正: ' + p.stock + '→' + newVal + '個', 'in');
+      closeAdjust();
+      await loadAll();
+      renderStock();
+    }
+  } catch(e) {
+    toast('通信エラーが発生しました', 'err');
+  }
+  document.getElementById('adjust-ok').disabled = false;
+}
 </script>
 </body>
 </html>

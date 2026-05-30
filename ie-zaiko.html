@@ -156,6 +156,18 @@ h1{font-size:17px;font-weight:700;padding:12px 0 10px;text-align:center;color:#2
 .adjust-ok:disabled{opacity:.5}
 .adj-btn{font-size:11px;padding:3px 8px;border:1px solid #bbb;border-radius:6px;background:#f5f5f5;color:#555;cursor:pointer;margin-top:4px;white-space:nowrap}
 .adj-btn:active{opacity:.7}
+/* 賞味期限 */
+.expiry-input-row{display:none;align-items:center;gap:8px;margin:8px 0;padding:10px 12px;background:#fff8e6;border-radius:10px;border:1px solid #f5d87a}
+.expiry-input-row.show{display:flex}
+.expiry-input-row label{font-size:12px;color:#7a5c00;white-space:nowrap;font-weight:600}
+.expiry-input-row input[type=date]{flex:1;padding:7px 10px;border:1px solid #f5d87a;border-radius:8px;font-size:14px;background:#fff}
+.expiry-tag{display:inline-block;font-size:11px;padding:2px 7px;border-radius:10px;margin-top:3px;font-weight:600}
+.expiry-tag.ok{background:#e1f5ee;color:#0F6E56}
+.expiry-tag.warn{background:#fff3cd;color:#856404}
+.expiry-tag.danger{background:#fde8e8;color:#c0392b}
+.expiry-section{margin-top:6px}
+.expiry-list-item{font-size:11px;color:#555;padding:2px 0;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #f5f5f5}
+.expiry-list-item:last-child{border-bottom:none}
 </style>
 </head>
 <body>
@@ -208,6 +220,7 @@ h1{font-size:17px;font-weight:700;padding:12px 0 10px;text-align:center;color:#2
         <div id="selected-name" style="font-size:16px;font-weight:700;color:#bbb">未選択</div>
         <div id="selected-sub" style="font-size:11px;color:#bbb;margin-top:3px"></div>
         <div id="selected-stock" style="font-size:13px;font-weight:600;color:#bbb;margin-top:4px"></div>
+        <div id="selected-expiry" style="margin-top:4px"></div>
       </div>
       <div class="preview" id="preview">
         <div class="pname" id="prev-name"></div>
@@ -225,6 +238,10 @@ h1{font-size:17px;font-weight:700;padding:12px 0 10px;text-align:center;color:#2
       <div class="qty-row">
         <label>数量</label>
         <input type="number" id="qty-input" value="1" min="1" max="9999"/>
+      </div>
+      <div class="expiry-input-row" id="expiry-input-row">
+        <label>賞味期限</label>
+        <input type="date" id="expiry-date"/>
       </div>
       <div class="action-row">
         <button class="btn-in" id="btn-in" onclick="doRecord('in')">入庫</button>
@@ -519,23 +536,31 @@ async function doRecord(type){
   const jan=document.getElementById('jan-input').value.trim();
   const qty=parseInt(document.getElementById('qty-input').value)||1;
   if(!jan){toast('JANコードを入力してください','err');return;}
+  // 食品入庫時は賞味期限必須チェック
+  const p=products.find(p=>p.jan===jan);
+  const isFood=p&&p.category==='食品';
+  const expiryVal=document.getElementById('expiry-date').value;
+  if(isFood&&type==='in'&&!expiryVal){toast('食品の入庫には賞味期限を入力してください','err');return;}
   const bi=document.getElementById('btn-in');
   const bo=document.getElementById('btn-out');
   bi.disabled=bo.disabled=true;
   setSync('loading','記録中...');
   try{
-    const data=await api({action:'record',jan,qty,type});
+    const params={action:'record',jan,qty,type};
+    if(isFood&&type==='in'&&expiryVal) params.expiry=expiryVal;
+    const data=await api(params);
     if(data.error){toast(data.error,'err');setSync('ok','スプレッドシート連携中');}
     else{
       toast(data.name+' '+(type==='in'?'入庫':'開封・出庫')+' '+qty+'個（在庫: '+data.stock+'）',type);
-      // 品目合計で発注ラインチェック
       if(data.itemTotal<=data.groupOrderLine)
         setTimeout(()=>toast('⚠️ 品目「'+data.item+'」要発注！（合計'+data.itemTotal+'個）','err'),800);
       document.getElementById('jan-input').value='';
       document.getElementById('qty-input').value='1';
+      document.getElementById('expiry-date').value='';
       document.getElementById('preview').style.display='none';
       setSelectedBox(null);
       await loadAll();
+      renderStock();
     }
   }catch(e){
     toast('通信エラーが発生しました','err');
@@ -604,14 +629,18 @@ function renderStock(){
         const stockStr=p.unit==='容量'
           ?`${p.stock}個（${(parseFloat(p.volume)||0)*(parseInt(p.stock)||0)}ml/g）`
           :`${p.stock}個`;
-        html+=`<div class="product-row">
-          <div class="product-name">${p.name}<br>
-            <span style="font-size:11px;color:#bbb">${p.jan}</span>
+        const foodExpHtml = (cat==='食品') ? renderFoodExpiry(p.jan) : '';
+        html+=`<div class="product-row" style="flex-direction:column;align-items:stretch">
+          <div style="display:flex;align-items:center;justify-content:space-between">
+            <div class="product-name">${p.name}<br>
+              <span style="font-size:11px;color:#bbb">${p.jan}</span>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px">
+              <div class="product-stock">${stockStr}</div>
+              <button class="adj-btn" onclick="openAdjust('${p.jan}')">📋 棚卸修正</button>
+            </div>
           </div>
-          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px">
-            <div class="product-stock">${stockStr}</div>
-            <button class="adj-btn" onclick="openAdjust('${p.jan}')">📋 棚卸修正</button>
-          </div>
+          ${foodExpHtml}
         </div>`;
       });
       html+='</div></div>';
@@ -926,6 +955,61 @@ async function scanPhotoFile(input){
 }
 
 // ── 選択中商品ボックス ────────────────────────────────────────
+
+// ── 賞味期限管理 ──────────────────────────────────────────────
+let foodDetails = {}; // {jan: [{expiry, qty}]}
+
+async function loadFoodDetails(){
+  try{
+    const data = await api({action:'getFoodDetail'});
+    foodDetails = data.details || {};
+  }catch(e){}
+}
+
+function expiryStatus(dateStr){
+  // dateStr: 'YYYY-MM-DD'
+  const exp = new Date(dateStr);
+  const now = new Date();
+  now.setHours(0,0,0,0);
+  const diffDays = Math.floor((exp - now) / (1000*60*60*24));
+  if(diffDays < 0) return {label:'期限切れ', cls:'danger', days: diffDays};
+  if(diffDays <= 60) return {label:'残'+diffDays+'日', cls:'warn', days: diffDays};
+  return {label:'残'+diffDays+'日', cls:'ok', days: diffDays};
+}
+
+function formatExpiry(dateStr){
+  // YYYY-MM-DD → YYYY年MM月DD日
+  const [y,m,d] = dateStr.split('-');
+  return y+'年'+parseInt(m)+'月'+parseInt(d)+'日';
+}
+
+function renderSelectedExpiry(jan){
+  const el = document.getElementById('selected-expiry');
+  const details = foodDetails[jan] || [];
+  if(!details.length){ el.innerHTML='<div style="font-size:11px;color:#bbb;margin-top:2px">賞味期限: 未登録</div>'; return; }
+  // 期限が近い順にソート
+  const sorted = [...details].sort((a,b)=>a.expiry.localeCompare(b.expiry));
+  const nearest = sorted[0];
+  const st = expiryStatus(nearest.expiry);
+  el.innerHTML = `<span class="expiry-tag ${st.cls}">${formatExpiry(nearest.expiry)} (${st.label})</span>`;
+}
+
+function renderFoodExpiry(jan){
+  const details = foodDetails[jan] || [];
+  if(!details.length) return '';
+  const sorted = [...details].sort((a,b)=>a.expiry.localeCompare(b.expiry));
+  let html = '<div class="expiry-section">';
+  sorted.forEach(d=>{
+    const st = expiryStatus(d.expiry);
+    html += `<div class="expiry-list-item">
+      <span style="font-size:11px">${formatExpiry(d.expiry)}</span>
+      <span class="expiry-tag ${st.cls}">${d.qty}個 ${st.label}</span>
+    </div>`;
+  });
+  html += '</div>';
+  return html;
+}
+
 function setSelectedBox(p){
   const box=document.getElementById('selected-product-box');
   const nameEl=document.getElementById('selected-name');

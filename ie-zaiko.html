@@ -1119,14 +1119,12 @@ function formatExpiry(dateStr){
 }
 
 function renderSelectedExpiry(jan){
-  const el = document.getElementById('selected-expiry');
   const details = foodDetails[jan] || [];
-  if(!details.length){ el.innerHTML='<div style="font-size:11px;color:#bbb;margin-top:2px">賞味期限: 未登録</div>'; return; }
-  // 期限が近い順にソート
+  if(!details.length) return '<div style="font-size:11px;color:#bbb;margin-top:2px">賞味期限: 未登録</div>';
   const sorted = [...details].sort((a,b)=>a.expiry.localeCompare(b.expiry));
   const nearest = sorted[0];
   const st = expiryStatus(nearest.expiry);
-  el.innerHTML = `<span class="expiry-tag ${st.cls}">${formatExpiry(nearest.expiry)} (${st.label})</span>`;
+  return `<span class="expiry-tag ${st.cls}">${formatExpiry(nearest.expiry)} (${st.label})</span>`;
 }
 
 function renderFoodExpiry(jan){
@@ -1146,27 +1144,42 @@ function renderFoodExpiry(jan){
 }
 
 function setSelectedBox(p){
-  const box=document.getElementById('selected-product-box');
-  const nameEl=document.getElementById('selected-name');
-  const subEl=document.getElementById('selected-sub');
-  const stockEl=document.getElementById('selected-stock');
-  if(p){
-    nameEl.textContent=p.name;
-    nameEl.style.color='#0F6E56';
-    const sub=[p.category,p.item].filter(Boolean).join(' › ');
-    subEl.textContent=(sub?sub+'　':'')+'JAN: '+p.jan;
-    subEl.style.color='#888';
-    stockEl.textContent='現在庫: '+p.stock+' 個';
-    stockEl.style.color='#333';
-    box.style.borderColor='#1D9E75';
-    box.style.background='#eef6f2';
-  }else{
+  const box      = document.getElementById('selected-product-box');
+  const nameEl   = document.getElementById('selected-name');
+  const subEl    = document.getElementById('selected-sub');
+  const stockEl  = document.getElementById('selected-stock');
+  const expiryEl = document.getElementById('selected-expiry');
+  const expiryRow= document.getElementById('expiry-input-row');
+
+  if(!p){
     nameEl.textContent='未選択';
     nameEl.style.color='#bbb';
     subEl.textContent='';
     stockEl.textContent='';
+    if(expiryEl)  expiryEl.innerHTML='';
+    if(expiryRow) expiryRow.classList.remove('show');
     box.style.borderColor='#e0e0e0';
     box.style.background='#fafafa';
+    return;
+  }
+
+  nameEl.textContent=p.name;
+  nameEl.style.color='#0F6E56';
+  const sub=[p.category,p.item].filter(Boolean).join(' › ');
+  subEl.textContent=(sub?sub+'　':'')+'JAN: '+p.jan;
+  subEl.style.color='#888';
+  stockEl.textContent='現在庫: '+p.stock+' 個';
+  stockEl.style.color='#333';
+  box.style.borderColor='#1D9E75';
+  box.style.background='#eef6f2';
+
+  // 食品のみ：賞味期限入力欄と在庫明細を表示
+  if(p.category==='食品'){
+    if(expiryRow) expiryRow.classList.add('show');
+    if(expiryEl)  expiryEl.innerHTML=renderSelectedExpiry(p.jan);
+  } else {
+    if(expiryRow) expiryRow.classList.remove('show');
+    if(expiryEl)  expiryEl.innerHTML='';
   }
 }
 

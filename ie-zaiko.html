@@ -168,6 +168,15 @@ h1{font-size:17px;font-weight:700;padding:12px 0 10px;text-align:center;color:#2
 .expiry-section{margin-top:6px}
 .expiry-list-item{font-size:11px;color:#555;padding:2px 0;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #f5f5f5}
 .expiry-list-item:last-child{border-bottom:none}
+.order-item{padding:12px 0;border-bottom:1px solid #f0f0f0}
+.order-item:last-child{border-bottom:none}
+.order-cat{font-size:11px;font-weight:700;color:#1D9E75;margin-bottom:2px}
+.order-name{font-size:14px;font-weight:600;color:#1a1a1a}
+.order-stock{font-size:12px;color:#e24b4a;font-weight:600;margin-top:2px}
+.order-method{font-size:12px;color:#378ADD;margin-top:2px}
+.order-empty{text-align:center;color:#aaa;padding:32px 0;font-size:14px}
+.order-expiry-warn{font-size:11px;color:#856404;background:#fff3cd;padding:2px 8px;border-radius:8px;margin-top:3px;display:inline-block}
+.order-expiry-danger{font-size:11px;color:#c0392b;background:#fde8e8;padding:2px 8px;border-radius:8px;margin-top:3px;display:inline-block}
 </style>
 </head>
 <body>
@@ -182,6 +191,7 @@ h1{font-size:17px;font-weight:700;padding:12px 0 10px;text-align:center;color:#2
   <div class="tabs">
     <button class="tab active" onclick="showTab('scan')">スキャン</button>
     <button class="tab" onclick="showTab('stock')">在庫一覧</button>
+    <button class="tab" onclick="showTab('order')">発注</button>
     <button class="tab" onclick="showTab('log')">履歴</button>
     <button class="tab" onclick="showTab('reg')">商品登録</button>
     <button class="tab" onclick="showTab('master')">品目設定</button>
@@ -255,6 +265,11 @@ h1{font-size:17px;font-weight:700;padding:12px 0 10px;text-align:center;color:#2
     <div id="stock-list"><div class="loading">読み込み中...</div></div>
   </div>
 
+  <!-- 発注タブ -->
+  <div id="tab-order" style="display:none">
+    <div id="order-list"><div class="loading">読み込み中...</div></div>
+  </div>
+
   <!-- 履歴タブ -->
   <div id="tab-log" style="display:none">
     <div class="card"><div id="log-list"><div class="loading">読み込み中...</div></div></div>
@@ -306,6 +321,17 @@ h1{font-size:17px;font-weight:700;padding:12px 0 10px;text-align:center;color:#2
     </div>
     <div class="card">
       <div class="section-label">登録済み商品</div>
+      <div style="display:flex;gap:8px;margin-bottom:10px">
+        <select id="reg-filter-cat" onchange="updateRegItemFilter();renderRegList()" style="flex:1;padding:7px 10px;border:1px solid #ddd;border-radius:8px;font-size:13px;background:#fff">
+          <option value="">すべての種類</option>
+          <option>風呂</option><option>洗濯</option><option>衛生</option>
+          <option>掃除</option><option>ペット</option><option>食品</option>
+          <option>家電</option><option>他</option>
+        </select>
+        <select id="reg-filter-item" onchange="renderRegList()" style="flex:1;padding:7px 10px;border:1px solid #ddd;border-radius:8px;font-size:13px;background:#fff">
+          <option value="">すべての品目</option>
+        </select>
+      </div>
       <div id="reg-list"><div class="loading">読み込み中...</div></div>
     </div>
   </div>
@@ -397,14 +423,16 @@ function setSync(state,msg){
 async function loadAll(){
   setSync('loading','読み込み中...');
   try{
-    const [pd,gd,ud]=await Promise.all([
+    const [pd,gd,ud,fd]=await Promise.all([
       api({action:'getProducts'}),
       api({action:'getGroups'}),
-      api({action:'getUsageDays'})
+      api({action:'getUsageDays'}),
+      api({action:'getFoodDetail'})
     ]);
     products=pd.products||[];
     groups=gd.groups||[];
     usageDays=ud.usageDays||{};
+    foodDetails=fd.details||{};
     setSync('ok','スプレッドシート連携中');
     return true;
   }catch(e){
@@ -417,21 +445,23 @@ async function refreshAll(){
   await loadAll();
   const idx=Array.from(document.querySelectorAll('.tab')).findIndex(e=>e.classList.contains('active'));
   if(idx===1)renderStock();
-  if(idx===2)await loadAndRenderLog();
-  if(idx===3)renderRegList();
-  if(idx===4)renderGroupList();
+  if(idx===2)renderOrderList();
+  if(idx===3)await loadAndRenderLog();
+  if(idx===4){renderRegList();updateRegItemFilter();}
+  if(idx===5)renderGroupList();
 }
 
 function showTab(t){
-  ['scan','stock','log','reg','master'].forEach(id=>{
+  ['scan','stock','order','log','reg','master'].forEach(id=>{
     document.getElementById('tab-'+id).style.display=id===t?'':'none';
   });
   document.querySelectorAll('.tab').forEach((el,i)=>{
-    el.classList.toggle('active',['scan','stock','log','reg','master'][i]===t);
+    el.classList.toggle('active',['scan','stock','order','log','reg','master'][i]===t);
   });
   if(t==='stock'){loadAll().then(renderStock);}
+  if(t==='order'){loadAll().then(renderOrderList);}
   if(t==='log')loadAndRenderLog();
-  if(t==='reg'){loadAll().then(()=>{renderRegList();filterItems();});}
+  if(t==='reg'){loadAll().then(()=>{renderRegList();filterItems();updateRegItemFilter();});}
   if(t==='master'){loadAll().then(renderGroupList);}
   if(t!=='scan')stopCam();
 }
@@ -679,17 +709,49 @@ async function loadAndRenderLog(){
   }
 }
 
+function updateRegItemFilter(){
+  const cat=document.getElementById('reg-filter-cat')?.value||'';
+  const itemSel=document.getElementById('reg-filter-item');
+  if(!itemSel)return;
+  const items=[...new Set(products.filter(p=>!cat||p.category===cat).map(p=>p.item))].sort();
+  itemSel.innerHTML='<option value="">すべての品目</option>'+items.map(i=>`<option>${i}</option>`).join('');
+}
+
 function renderRegList(){
   const el=document.getElementById('reg-list');
   if(!products.length){el.innerHTML='<div class="empty">商品がまだ登録されていません</div>';return;}
-  el.innerHTML=products.map(p=>`
-    <div style="display:flex;align-items:center;padding:8px 0;border-bottom:1px solid #f5f5f5;gap:8px;font-size:13px">
+  const cat=document.getElementById('reg-filter-cat')?.value||'';
+  const item=document.getElementById('reg-filter-item')?.value||'';
+  const catOrder=['風呂','洗濯','衛生','掃除','ペット','食品','家電','他'];
+  let filtered=products
+    .filter(p=>(!cat||p.category===cat)&&(!item||p.item===item))
+    .sort((a,b)=>{
+      const ci=catOrder.indexOf(a.category)-catOrder.indexOf(b.category);
+      if(ci!==0)return ci;
+      if(a.item!==b.item)return a.item.localeCompare(b.item,'ja');
+      return a.name.localeCompare(b.name,'ja');
+    });
+  if(!filtered.length){el.innerHTML='<div class="empty">該当する商品がありません</div>';return;}
+  // 種類・品目でグループ化して表示
+  let html='';let lastCat='';let lastItem='';
+  filtered.forEach(p=>{
+    if(p.category!==lastCat){
+      html+=`<div style="font-size:11px;font-weight:700;color:#1D9E75;padding:8px 0 2px;border-bottom:2px solid #1D9E75;margin-bottom:4px">${CATEGORY_ICONS[p.category]||''} ${p.category}</div>`;
+      lastCat=p.category;lastItem='';
+    }
+    if(p.item!==lastItem){
+      html+=`<div style="font-size:11px;color:#888;padding:4px 0 2px;font-weight:600">${p.item}</div>`;
+      lastItem=p.item;
+    }
+    html+=`<div style="display:flex;align-items:center;padding:6px 0;border-bottom:1px solid #f5f5f5;gap:8px;font-size:13px">
       <div style="flex:1">
         <div style="font-weight:500">${p.name}</div>
-        <div style="color:#aaa;font-size:11px">${p.category} › ${p.item} ／ ${p.jan}</div>
+        <div style="color:#aaa;font-size:11px">JAN: ${p.jan}　在庫: ${p.stock}個</div>
       </div>
       <button onclick="deleteProduct('${p.jan}')" style="font-size:12px;padding:4px 10px;border-radius:8px;border:1px solid #ddd;background:#f5f5f5;cursor:pointer">削除</button>
-    </div>`).join('');
+    </div>`;
+  });
+  el.innerHTML=html;
 }
 
 function renderGroupList(){
@@ -780,6 +842,79 @@ async function deleteProduct(jan){
   }catch(e){
     toast('通信エラーが発生しました','err');
   }
+}
+
+
+// ── 発注一覧 ──────────────────────────────────────────────────
+function renderOrderList(){
+  const el=document.getElementById('order-list');
+  const catOrder=['風呂','洗濯','衛生','掃除','ペット','食品','家電','他'];
+  
+  // 発注ライン以下の品目を収集
+  const lowItems=[];
+  groups.forEach(g=>{
+    const total=calcItemTotal(g.item);
+    const line=getGroupOrderLine(g.item);
+    if(total<=line){
+      // その品目の商品一覧
+      const ps=products.filter(p=>p.item===g.item);
+      lowItems.push({category:g.category,item:g.item,total,line,products:ps});
+    }
+  });
+
+  // 賞味期限警告（食品）
+  const expiryWarns=[];
+  Object.entries(foodDetails).forEach(([jan,details])=>{
+    const p=products.find(p=>p.jan===jan);
+    if(!p||p.category!=='食品')return;
+    details.forEach(d=>{
+      const st=expiryStatus(d.expiry);
+      if(st.cls==='warn'||st.cls==='danger'){
+        expiryWarns.push({jan,name:p.name,item:p.item,expiry:d.expiry,qty:d.qty,st});
+      }
+    });
+  });
+  expiryWarns.sort((a,b)=>a.expiry.localeCompare(b.expiry));
+
+  if(!lowItems.length&&!expiryWarns.length){
+    el.innerHTML=`<div class="card"><div class="order-empty">発注が必要な商品はありません</div></div>`;
+    return;
+  }
+
+  let html='';
+
+  // 発注ライン以下
+  if(lowItems.length){
+    lowItems.sort((a,b)=>{
+      const ci=catOrder.indexOf(a.category)-catOrder.indexOf(b.category);
+      return ci!==0?ci:a.item.localeCompare(b.item,'ja');
+    });
+    html+=`<div class="card"><div class="section-label">要発注（在庫が発注ライン以下）</div>`;
+    lowItems.forEach(g=>{
+      const icon=CATEGORY_ICONS[g.category]||'';
+      html+=`<div class="order-item">
+        <div class="order-cat">${icon} ${g.category} › ${g.item}</div>
+        <div class="order-stock">在庫 ${g.total}個 ／ 発注ライン ${g.line}個</div>`;
+      html+='</div>';
+    });
+    html+='</div>';
+  }
+
+  // 賞味期限警告
+  if(expiryWarns.length){
+    html+=`<div class="card"><div class="section-label">賞味期限 要注意（食品）</div>`;
+    expiryWarns.forEach(w=>{
+      const cls=w.st.cls==='danger'?'order-expiry-danger':'order-expiry-warn';
+      html+=`<div class="order-item">
+        <div class="order-name">${w.name}</div>
+        <div class="order-cat">${w.item}</div>
+        <span class="${cls}">${formatExpiry(w.expiry)}　${w.qty}個　${w.st.label}</span>
+      </div>`;
+    });
+    html+='</div>';
+  }
+
+  el.innerHTML=html;
 }
 
 // ── カメラ変数 ────────────────────────────────────────────────

@@ -317,6 +317,14 @@ h1{font-size:17px;font-weight:700;padding:12px 0 10px;text-align:center;color:#2
           <input type="number" id="reg-stock" value="0" min="0"/>
         </div>
       </div>
+      <div style="display:flex;align-items:center;gap:10px;margin:8px 0;padding:10px 12px;background:#f8f8f8;border-radius:10px">
+        <input type="checkbox" id="reg-has-expiry" onchange="toggleRegExpiry()"/>
+        <label for="reg-has-expiry" style="font-size:13px;color:#333;cursor:pointer;font-weight:600">期限管理あり（賞味期限・消費期限）</label>
+      </div>
+      <div id="reg-expiry-row" style="display:none;align-items:center;gap:8px;margin-bottom:8px;padding:10px 12px;background:#fff8e6;border-radius:10px;border:1px solid #f5d87a">
+        <label style="font-size:12px;color:#7a5c00;white-space:nowrap;font-weight:600">初期賞味期限</label>
+        <input type="date" id="reg-expiry" style="flex:1;padding:7px 10px;border:1px solid #f5d87a;border-radius:8px;font-size:14px;background:#fff"/>
+      </div>
       <button class="reg-btn" onclick="registerProduct()">登録する</button>
     </div>
     <div class="card">
@@ -566,18 +574,18 @@ async function doRecord(type){
   const jan=document.getElementById('jan-input').value.trim();
   const qty=parseInt(document.getElementById('qty-input').value)||1;
   if(!jan){toast('JANコードを入力してください','err');return;}
-  // 食品入庫時は賞味期限必須チェック
+  // 期限管理あり商品の入庫時は賞味期限必須
   const p=products.find(p=>p.jan===jan);
-  const isFood=p&&p.category==='食品';
+  const hasExpiry=p&&p.hasExpiry;
   const expiryVal=document.getElementById('expiry-date').value;
-  if(isFood&&type==='in'&&!expiryVal){toast('食品の入庫には賞味期限を入力してください','err');return;}
+  if(hasExpiry&&type==='in'&&!expiryVal){toast('賞味期限・消費期限を入力してください','err');return;}
   const bi=document.getElementById('btn-in');
   const bo=document.getElementById('btn-out');
   bi.disabled=bo.disabled=true;
   setSync('loading','記録中...');
   try{
     const params={action:'record',jan,qty,type};
-    if(isFood&&type==='in'&&expiryVal) params.expiry=expiryVal;
+    if(hasExpiry&&type==='in'&&expiryVal) params.expiry=expiryVal;
     const data=await api(params);
     if(data.error){toast(data.error,'err');setSync('ok','スプレッドシート連携中');}
     else{
@@ -659,7 +667,7 @@ function renderStock(){
         const stockStr=p.unit==='容量'
           ?`${p.stock}個（${(parseFloat(p.volume)||0)*(parseInt(p.stock)||0)}ml/g）`
           :`${p.stock}個`;
-        const foodExpHtml = (cat==='食品') ? renderFoodExpiry(p.jan) : '';
+        const foodExpHtml = p.hasExpiry ? renderFoodExpiry(p.jan) : '';
         html+=`<div class="product-row" style="flex-direction:column;align-items:stretch">
           <div style="display:flex;align-items:center;justify-content:space-between">
             <div class="product-name">${p.name}<br>
@@ -746,7 +754,7 @@ function renderRegList(){
     html+=`<div style="display:flex;align-items:center;padding:6px 0;border-bottom:1px solid #f5f5f5;gap:8px;font-size:13px">
       <div style="flex:1">
         <div style="font-weight:500">${p.name}</div>
-        <div style="color:#aaa;font-size:11px">JAN: ${p.jan}　在庫: ${p.stock}個</div>
+        <div style="color:#aaa;font-size:11px">JAN: ${p.jan}　在庫: ${p.stock}個${p.hasExpiry?' ／ <span style="color:#856404;background:#fff3cd;padding:1px 5px;border-radius:6px;font-size:10px">期限管理</span>':''}</div>
       </div>
       <button onclick="deleteProduct('${p.jan}')" style="font-size:12px;padding:4px 10px;border-radius:8px;border:1px solid #ddd;background:#f5f5f5;cursor:pointer">削除</button>
     </div>`;
@@ -805,6 +813,11 @@ async function addGroup(){
   }
 }
 
+function toggleRegExpiry(){
+  const checked=document.getElementById('reg-has-expiry').checked;
+  document.getElementById('reg-expiry-row').style.display=checked?'flex':'none';
+}
+
 async function registerProduct(){
   const jan=document.getElementById('reg-jan').value.trim();
   const category=document.getElementById('reg-category').value;
@@ -812,16 +825,22 @@ async function registerProduct(){
   const name=document.getElementById('reg-name').value.trim();
   const volume=document.getElementById('reg-volume').value;
   const stock=document.getElementById('reg-stock').value;
+  const hasExpiry=document.getElementById('reg-has-expiry').checked?'1':'';
+  const expiry=document.getElementById('reg-expiry').value;
   if(!jan||!category||!item||!name){toast('JANコード・種類・品目・商品名は必須です','err');return;}
+  if(hasExpiry&&parseInt(stock)>0&&!expiry){toast('初期在庫がある場合は賞味期限を入力してください','err');return;}
   setSync('loading','登録中...');
   try{
-    const data=await api({action:'addProduct',jan,category,item,name,unit:selectedUnit,volume,stock});
+    const data=await api({action:'addProduct',jan,category,item,name,unit:selectedUnit,volume,stock,hasExpiry,expiry});
     if(data.error){toast(data.error,'err');setSync('ok','スプレッドシート連携中');return;}
     toast(name+'を登録しました','in');
     document.getElementById('reg-jan').value='';
     document.getElementById('reg-name').value='';
     document.getElementById('reg-volume').value='';
     document.getElementById('reg-stock').value='0';
+    document.getElementById('reg-has-expiry').checked=false;
+    document.getElementById('reg-expiry').value='';
+    document.getElementById('reg-expiry-row').style.display='none';
     await loadAll();
     renderRegList();
   }catch(e){
@@ -866,7 +885,7 @@ function renderOrderList(){
   const expiryWarns=[];
   Object.entries(foodDetails).forEach(([jan,details])=>{
     const p=products.find(p=>p.jan===jan);
-    if(!p||p.category!=='食品')return;
+    if(!p||!p.hasExpiry)return;
     details.forEach(d=>{
       const st=expiryStatus(d.expiry);
       if(st.cls==='warn'||st.cls==='danger'){
@@ -1173,8 +1192,8 @@ function setSelectedBox(p){
   box.style.borderColor='#1D9E75';
   box.style.background='#eef6f2';
 
-  // 食品のみ：賞味期限入力欄と在庫明細を表示
-  if(p.category==='食品'){
+  // 期限管理ありの商品：賞味期限入力欄と在庫明細を表示
+  if(p.hasExpiry){
     if(expiryRow) expiryRow.classList.add('show');
     if(expiryEl)  expiryEl.innerHTML=renderSelectedExpiry(p.jan);
   } else {

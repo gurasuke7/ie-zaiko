@@ -576,7 +576,7 @@ async function doRecord(type){
   if(!jan){toast('JANコードを入力してください','err');return;}
   // 期限管理あり商品の入庫時は賞味期限必須
   const p=products.find(p=>p.jan===jan);
-  const hasExpiry=p&&p.hasExpiry;
+  const hasExpiry=p&&(p.hasExpiry||p.category==='食品');
   const expiryVal=document.getElementById('expiry-date').value;
   if(hasExpiry&&type==='in'&&!expiryVal){toast('賞味期限・消費期限を入力してください','err');return;}
   const bi=document.getElementById('btn-in');
@@ -667,7 +667,7 @@ function renderStock(){
         const stockStr=p.unit==='容量'
           ?`${p.stock}個（${(parseFloat(p.volume)||0)*(parseInt(p.stock)||0)}ml/g）`
           :`${p.stock}個`;
-        const foodExpHtml = p.hasExpiry ? renderFoodExpiry(p.jan) : '';
+        const foodExpHtml = (p.hasExpiry||p.category==='食品') ? renderFoodExpiry(p.jan) : '';
         html+=`<div class="product-row" style="flex-direction:column;align-items:stretch">
           <div style="display:flex;align-items:center;justify-content:space-between">
             <div class="product-name">${p.name}<br>
@@ -885,7 +885,7 @@ function renderOrderList(){
   const expiryWarns=[];
   Object.entries(foodDetails).forEach(([jan,details])=>{
     const p=products.find(p=>p.jan===jan);
-    if(!p||!p.hasExpiry)return;
+    if(!p||(!p.hasExpiry&&p.category!=='食品'))return;
     details.forEach(d=>{
       const st=expiryStatus(d.expiry);
       if(st.cls==='warn'||st.cls==='danger'){
@@ -1193,7 +1193,7 @@ function setSelectedBox(p){
   box.style.background='#eef6f2';
 
   // 期限管理ありの商品：賞味期限入力欄と在庫明細を表示
-  if(p.hasExpiry){
+  if(p.hasExpiry||p.category==='食品'){
     if(expiryRow) expiryRow.classList.add('show');
     if(expiryEl)  expiryEl.innerHTML=renderSelectedExpiry(p.jan);
   } else {

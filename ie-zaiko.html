@@ -177,6 +177,16 @@ h1{font-size:17px;font-weight:700;padding:12px 0 10px;text-align:center;color:#2
 .order-empty{text-align:center;color:#aaa;padding:32px 0;font-size:14px}
 .order-expiry-warn{font-size:11px;color:#856404;background:#fff3cd;padding:2px 8px;border-radius:8px;margin-top:3px;display:inline-block}
 .order-expiry-danger{font-size:11px;color:#c0392b;background:#fde8e8;padding:2px 8px;border-radius:8px;margin-top:3px;display:inline-block}
+.order-pending-section{margin-top:10px}
+.order-pending-item{padding:10px 0;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.order-pending-item:last-child{border-bottom:none}
+.order-pending-info{flex:1}
+.order-pending-name{font-size:13px;font-weight:600;color:#1a1a1a}
+.order-pending-sub{font-size:11px;color:#888;margin-top:2px}
+.order-back-btn{font-size:11px;padding:4px 10px;border:1px solid #bbb;border-radius:8px;background:#f5f5f5;color:#555;cursor:pointer;white-space:nowrap}
+.order-back-btn:active{opacity:.7}
+.pending-btn{font-size:11px;padding:4px 10px;border:1px solid #1D9E75;border-radius:8px;background:#eef6f2;color:#0F6E56;cursor:pointer;white-space:nowrap;margin-top:4px}
+.pending-btn:active{opacity:.7}
 </style>
 </head>
 <body>
@@ -431,16 +441,18 @@ function setSync(state,msg){
 async function loadAll(){
   setSync('loading','読み込み中...');
   try{
-    const [pd,gd,ud,fd]=await Promise.all([
+    const [pd,gd,ud,fd,od]=await Promise.all([
       api({action:'getProducts'}),
       api({action:'getGroups'}),
       api({action:'getUsageDays'}),
-      api({action:'getFoodDetail'})
+      api({action:'getFoodDetail'}),
+      api({action:'getOrderSettings'})
     ]);
     products=pd.products||[];
     groups=gd.groups||[];
     usageDays=ud.usageDays||{};
     foodDetails=fd.details||{};
+    orderSettings=od.settings||{};
     setSync('ok','スプレッドシート連携中');
     return true;
   }catch(e){
@@ -866,20 +878,26 @@ async function deleteProduct(jan){
 function renderOrderList(){
   const el=document.getElementById('order-list');
   const catOrder=['風呂','洗濯','衛生','掃除','ペット','食品','家電','他'];
-  
+
   // 発注ライン以下の品目を収集
   const lowItems=[];
   groups.forEach(g=>{
     const total=calcItemTotal(g.item);
     const line=getGroupOrderLine(g.item);
     if(total<=line){
-      // その品目の商品一覧
-      const ps=products.filter(p=>p.item===g.item);
-      lowItems.push({category:g.category,item:g.item,total,line,products:ps});
+      lowItems.push({category:g.category,item:g.item,total,line});
     }
   });
+  lowItems.sort((a,b)=>{
+    const ci=catOrder.indexOf(a.category)-catOrder.indexOf(b.category);
+    return ci!==0?ci:a.item.localeCompare(b.item,'ja');
+  });
 
-  // 賞味期限警告（食品）
+  // 要発注 と 少なくなったら発注 に分類
+  const urgentItems  = lowItems.filter(g=>orderSettings[g.item]!=='pending');
+  const pendingItems = lowItems.filter(g=>orderSettings[g.item]==='pending');
+
+  // 賞味期限警告
   const expiryWarns=[];
   Object.entries(foodDetails).forEach(([jan,details])=>{
     const p=products.find(p=>p.jan===jan);
@@ -900,26 +918,41 @@ function renderOrderList(){
 
   let html='';
 
-  // 発注ライン以下
-  if(lowItems.length){
-    lowItems.sort((a,b)=>{
-      const ci=catOrder.indexOf(a.category)-catOrder.indexOf(b.category);
-      return ci!==0?ci:a.item.localeCompare(b.item,'ja');
-    });
+  // 要発注（赤字）
+  if(urgentItems.length){
     html+=`<div class="card"><div class="section-label">要発注（在庫が発注ライン以下）</div>`;
-    lowItems.forEach(g=>{
+    urgentItems.forEach(g=>{
       const icon=CATEGORY_ICONS[g.category]||'';
       html+=`<div class="order-item">
-        <div class="order-cat">${icon} ${g.category} › ${g.item}</div>
-        <div class="order-stock">在庫 ${g.total}個 ／ 発注ライン ${g.line}個</div>`;
-      html+='</div>';
+        <div style="flex:1">
+          <div class="order-cat">${icon} ${g.category} › ${g.item}</div>
+          <div class="order-stock">在庫 ${g.total}個 ／ 発注ライン ${g.line}個</div>
+        </div>
+        <button class="pending-btn" onclick="moveOrderToPending('${g.item}')">少なくなったら発注</button>
+      </div>`;
+    });
+    html+='</div>';
+  }
+
+  // 少なくなったら発注リスト（黒字）
+  if(pendingItems.length){
+    html+=`<div class="card"><div class="section-label">少なくなったら発注</div>`;
+    pendingItems.forEach(g=>{
+      const icon=CATEGORY_ICONS[g.category]||'';
+      html+=`<div class="order-pending-item">
+        <div class="order-pending-info">
+          <div class="order-pending-name">${icon} ${g.category} › ${g.item}</div>
+          <div class="order-pending-sub">在庫 ${g.total}個 ／ 発注ライン ${g.line}個</div>
+        </div>
+        <button class="order-back-btn" onclick="moveOrderToUrgent('${g.item}')">要発注に戻す</button>
+      </div>`;
     });
     html+='</div>';
   }
 
   // 賞味期限警告
   if(expiryWarns.length){
-    html+=`<div class="card"><div class="section-label">賞味期限 要注意（食品）</div>`;
+    html+=`<div class="card"><div class="section-label">賞味期限 要注意</div>`;
     expiryWarns.forEach(w=>{
       const cls=w.st.cls==='danger'?'order-expiry-danger':'order-expiry-warn';
       html+=`<div class="order-item">
@@ -932,6 +965,20 @@ function renderOrderList(){
   }
 
   el.innerHTML=html;
+}
+
+async function moveOrderToPending(item){
+  orderSettings[item]='pending';
+  renderOrderList();
+  try{ await api({action:'setOrderSetting',item,status:'pending'}); }
+  catch(e){ toast('保存に失敗しました','err'); }
+}
+
+async function moveOrderToUrgent(item){
+  delete orderSettings[item];
+  renderOrderList();
+  try{ await api({action:'setOrderSetting',item,status:'none'}); }
+  catch(e){ toast('保存に失敗しました','err'); }
 }
 
 // ── カメラ変数 ────────────────────────────────────────────────
@@ -1110,6 +1157,7 @@ async function scanPhotoFile(input){
 
 // ── 賞味期限管理 ──────────────────────────────────────────────
 let foodDetails = {}; // {jan: [{expiry, qty}]}
+let orderSettings = {}; // {item: 'pending'}
 
 async function loadFoodDetails(){
   try{

@@ -300,7 +300,7 @@ h1{font-size:17px;font-weight:700;padding:12px 0 10px;text-align:center;color:#2
             <option value="">選択してください</option>
             <option>風呂</option><option>洗濯</option><option>衛生</option>
             <option>掃除</option><option>ペット</option><option>食品</option>
-            <option>家電</option><option>他</option>
+            <option>家電</option><option>災害用</option><option>他</option>
           </select>
         </div>
         <div>
@@ -344,7 +344,7 @@ h1{font-size:17px;font-weight:700;padding:12px 0 10px;text-align:center;color:#2
           <option value="">すべての種類</option>
           <option>風呂</option><option>洗濯</option><option>衛生</option>
           <option>掃除</option><option>ペット</option><option>食品</option>
-          <option>家電</option><option>他</option>
+          <option>家電</option><option>災害用</option><option>他</option>
         </select>
         <select id="reg-filter-item" onchange="renderRegList()" style="flex:1;padding:7px 10px;border:1px solid #ddd;border-radius:8px;font-size:13px;background:#fff">
           <option value="">すべての品目</option>
@@ -364,7 +364,7 @@ h1{font-size:17px;font-weight:700;padding:12px 0 10px;text-align:center;color:#2
           <select id="master-category">
             <option>風呂</option><option>洗濯</option><option>衛生</option>
             <option>掃除</option><option>ペット</option><option>食品</option>
-            <option>家電</option><option>他</option>
+            <option>家電</option><option>災害用</option><option>他</option>
           </select>
         </div>
         <div>
@@ -419,7 +419,7 @@ h1{font-size:17px;font-weight:700;padding:12px 0 10px;text-align:center;color:#2
 
 <script>
 const GAS_URL='https://script.google.com/macros/s/AKfycbw72eySIRa71eyz29H08On4MT5CvYmStFOW258Kt1F7WDhEzgRRG-wrf1QawAFscYSbxA/exec';
-const CATEGORY_ICONS={'風呂':'🛁','洗濯':'👕','衛生':'🪥','掃除':'🧹','ペット':'🐾','食品':'🍱','家電':'💡','他':'📦'};
+const CATEGORY_ICONS={'風呂':'🛁','洗濯':'👕','衛生':'🪥','掃除':'🧹','ペット':'🐾','食品':'🍱','家電':'💡','災害用':'🆘','他':'📦'};
 let products=[];
 let groups=[];
 let usageDays={};
@@ -623,7 +623,7 @@ function renderStock(){
     el.innerHTML='<div class="card"><div class="empty">商品がまだ登録されていません</div></div>';
     return;
   }
-  const catOrder=['風呂','洗濯','衛生','掃除','ペット','食品','家電','他'];
+  const catOrder=['風呂','洗濯','衛生','掃除','ペット','食品','家電','災害用','他'];
   const byCategory={};
   products.forEach(p=>{
     const cat=p.category||'他';
@@ -740,7 +740,7 @@ function renderRegList(){
   if(!products.length){el.innerHTML='<div class="empty">商品がまだ登録されていません</div>';return;}
   const cat=document.getElementById('reg-filter-cat')?.value||'';
   const item=document.getElementById('reg-filter-item')?.value||'';
-  const catOrder=['風呂','洗濯','衛生','掃除','ペット','食品','家電','他'];
+  const catOrder=['風呂','洗濯','衛生','掃除','ペット','食品','家電','災害用','他'];
   let filtered=products
     .filter(p=>(!cat||p.category===cat)&&(!item||p.item===item))
     .sort((a,b)=>{
@@ -877,7 +877,7 @@ async function deleteProduct(jan){
 // ── 発注一覧 ──────────────────────────────────────────────────
 function renderOrderList(){
   const el=document.getElementById('order-list');
-  const catOrder=['風呂','洗濯','衛生','掃除','ペット','食品','家電','他'];
+  const catOrder=['風呂','洗濯','衛生','掃除','ペット','食品','家電','災害用','他'];
 
   // 発注ライン以下の品目を収集
   const lowItems=[];

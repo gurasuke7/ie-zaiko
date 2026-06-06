@@ -187,6 +187,17 @@ h1{font-size:17px;font-weight:700;padding:12px 0 10px;text-align:center;color:#2
 .order-back-btn:active{opacity:.7}
 .pending-btn{font-size:11px;padding:4px 10px;border:1px solid #1D9E75;border-radius:8px;background:#eef6f2;color:#0F6E56;cursor:pointer;white-space:nowrap;margin-top:4px}
 .pending-btn:active{opacity:.7}
+.memo-input-row{display:flex;gap:8px;margin-bottom:10px}
+.memo-input-row input{flex:1;padding:10px 12px;border:1.5px solid #ddd;border-radius:10px;font-size:14px;outline:none}
+.memo-input-row input:focus{border-color:#1D9E75}
+.memo-add-btn{padding:10px 14px;background:#1D9E75;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;white-space:nowrap}
+.memo-add-btn:active{opacity:.8}
+.memo-item{display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid #f5f5f5}
+.memo-item:last-child{border-bottom:none}
+.memo-text{flex:1;font-size:13px;color:#1a1a1a;line-height:1.5}
+.memo-del-btn{font-size:11px;padding:3px 9px;border:1px solid #ddd;border-radius:7px;background:#f5f5f5;color:#888;cursor:pointer;white-space:nowrap;flex-shrink:0}
+.memo-del-btn:active{opacity:.7}
+.memo-empty{text-align:center;color:#bbb;font-size:13px;padding:16px 0}
 </style>
 </head>
 <body>
@@ -278,6 +289,14 @@ h1{font-size:17px;font-weight:700;padding:12px 0 10px;text-align:center;color:#2
   <!-- 発注タブ -->
   <div id="tab-order" style="display:none">
     <div id="order-list"><div class="loading">読み込み中...</div></div>
+    <div class="card" style="margin-top:8px">
+      <div class="section-label">買うものメモ</div>
+      <div class="memo-input-row">
+        <input type="text" id="memo-input" placeholder="買うものを入力..." onkeydown="if(event.key==='Enter')addMemoItem()"/>
+        <button class="memo-add-btn" onclick="addMemoItem()">追加</button>
+      </div>
+      <div id="memo-list"><div class="memo-empty">メモはありません</div></div>
+    </div>
   </div>
 
   <!-- 履歴タブ -->
@@ -441,18 +460,20 @@ function setSync(state,msg){
 async function loadAll(){
   setSync('loading','読み込み中...');
   try{
-    const [pd,gd,ud,fd,od]=await Promise.all([
+    const [pd,gd,ud,fd,od,md]=await Promise.all([
       api({action:'getProducts'}),
       api({action:'getGroups'}),
       api({action:'getUsageDays'}),
       api({action:'getFoodDetail'}),
-      api({action:'getOrderSettings'})
+      api({action:'getOrderSettings'}),
+      api({action:'getMemos'})
     ]);
     products=pd.products||[];
     groups=gd.groups||[];
     usageDays=ud.usageDays||{};
     foodDetails=fd.details||{};
     orderSettings=od.settings||{};
+    memos=md.memos||[];
     setSync('ok','スプレッドシート連携中');
     return true;
   }catch(e){
@@ -465,7 +486,7 @@ async function refreshAll(){
   await loadAll();
   const idx=Array.from(document.querySelectorAll('.tab')).findIndex(e=>e.classList.contains('active'));
   if(idx===1)renderStock();
-  if(idx===2)renderOrderList();
+  if(idx===2){renderOrderList();renderMemoList();}
   if(idx===3)await loadAndRenderLog();
   if(idx===4){renderRegList();updateRegItemFilter();}
   if(idx===5)renderGroupList();
@@ -479,7 +500,7 @@ function showTab(t){
     el.classList.toggle('active',['scan','stock','order','log','reg','master'][i]===t);
   });
   if(t==='stock'){loadAll().then(renderStock);}
-  if(t==='order'){loadAll().then(renderOrderList);}
+  if(t==='order'){loadAll().then(()=>{renderOrderList();renderMemoList();});}
   if(t==='log')loadAndRenderLog();
   if(t==='reg'){loadAll().then(()=>{renderRegList();filterItems();updateRegItemFilter();});}
   if(t==='master'){loadAll().then(renderGroupList);}
@@ -967,6 +988,44 @@ function renderOrderList(){
   el.innerHTML=html;
 }
 
+
+// ── 買うものメモ ──────────────────────────────────────────────
+function renderMemoList(){
+  const el=document.getElementById('memo-list');
+  if(!memos.length){el.innerHTML='<div class="memo-empty">メモはありません</div>';return;}
+  el.innerHTML=memos.map(m=>`
+    <div class="memo-item">
+      <div class="memo-text">${m.text}</div>
+      <button class="memo-del-btn" onclick="deleteMemoItem('${m.id}')">削除</button>
+    </div>`).join('');
+}
+
+async function addMemoItem(){
+  const inp=document.getElementById('memo-input');
+  const text=inp.value.trim();
+  if(!text)return;
+  inp.value='';
+  try{
+    const data=await api({action:'addMemo',text});
+    if(data.error){toast(data.error,'err');return;}
+    memos.push({id:data.id,text});
+    renderMemoList();
+  }catch(e){
+    toast('通信エラーが発生しました','err');
+  }
+}
+
+async function deleteMemoItem(id){
+  try{
+    const data=await api({action:'deleteMemo',id});
+    if(data.error){toast(data.error,'err');return;}
+    memos=memos.filter(m=>m.id!==id);
+    renderMemoList();
+  }catch(e){
+    toast('通信エラーが発生しました','err');
+  }
+}
+
 async function moveOrderToPending(item){
   orderSettings[item]='pending';
   renderOrderList();
@@ -1158,6 +1217,7 @@ async function scanPhotoFile(input){
 // ── 賞味期限管理 ──────────────────────────────────────────────
 let foodDetails = {}; // {jan: [{expiry, qty}]}
 let orderSettings = {}; // {item: 'pending'}
+let memos = []; // [{id, text}]
 
 async function loadFoodDetails(){
   try{

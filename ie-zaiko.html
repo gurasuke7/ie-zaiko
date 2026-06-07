@@ -309,9 +309,6 @@ h1{font-size:17px;font-weight:700;padding:12px 0 10px;text-align:center;color:#2
           <label>種類 ＊</label>
           <select id="reg-category" onchange="filterItems()">
             <option value="">選択してください</option>
-            <option>風呂</option><option>洗濯</option><option>衛生</option>
-            <option>掃除</option><option>ペット</option><option>食品</option>
-            <option>家電</option><option>災害用</option><option>他</option>
           </select>
         </div>
         <div>
@@ -353,9 +350,6 @@ h1{font-size:17px;font-weight:700;padding:12px 0 10px;text-align:center;color:#2
       <div style="display:flex;gap:8px;margin-bottom:10px">
         <select id="reg-filter-cat" onchange="updateRegItemFilter();renderRegList()" style="flex:1;padding:7px 10px;border:1px solid #ddd;border-radius:8px;font-size:13px;background:#fff">
           <option value="">すべての種類</option>
-          <option>風呂</option><option>洗濯</option><option>衛生</option>
-          <option>掃除</option><option>ペット</option><option>食品</option>
-          <option>家電</option><option>災害用</option><option>他</option>
         </select>
         <select id="reg-filter-item" onchange="renderRegList()" style="flex:1;padding:7px 10px;border:1px solid #ddd;border-radius:8px;font-size:13px;background:#fff">
           <option value="">すべての品目</option>
@@ -372,11 +366,7 @@ h1{font-size:17px;font-weight:700;padding:12px 0 10px;text-align:center;color:#2
       <div class="reg-grid">
         <div>
           <label>種類</label>
-          <select id="master-category">
-            <option>風呂</option><option>洗濯</option><option>衛生</option>
-            <option>掃除</option><option>ペット</option><option>食品</option>
-            <option>家電</option><option>災害用</option><option>他</option>
-          </select>
+          <select id="master-category"></select>
         </div>
         <div>
           <label>品目名</label>
@@ -430,6 +420,44 @@ h1{font-size:17px;font-weight:700;padding:12px 0 10px;text-align:center;color:#2
 
 <script>
 const GAS_URL='https://script.google.com/macros/s/AKfycbw72eySIRa71eyz29H08On4MT5CvYmStFOW258Kt1F7WDhEzgRRG-wrf1QawAFscYSbxA/exec';
+
+// ── 種類一覧（動的） ──────────────────────────────────────────
+const DEFAULT_CAT_ORDER = ['風呂','洗濯','衛生','掃除','ペット','食品','家電','災害用','他'];
+
+function getCatOrder(){
+  // groups・productsの両方から種類を収集してデフォルト順にマージ
+  const fromGroups = groups.map(g=>g.category).filter(Boolean);
+  const fromProducts = products.map(p=>p.category).filter(Boolean);
+  const all = [...new Set([...fromGroups, ...fromProducts])];
+  const merged = [...DEFAULT_CAT_ORDER];
+  all.forEach(c=>{ if(!merged.includes(c)) merged.push(c); });
+  return merged;
+}
+
+function buildCategoryOptions(selId, withAll=false){
+  const sel=document.getElementById(selId);
+  if(!sel)return;
+  const current=sel.value;
+  const cats=getCatOrder();
+  sel.innerHTML=(withAll?'<option value="">すべての種類</option>':'')+
+    cats.map(c=>`<option${current===c?' selected':''}>${c}</option>`).join('');
+}
+
+function updateAllCategorySelects(){
+  buildCategoryOptions('reg-category');
+  buildCategoryOptions('reg-filter-cat', true);
+  buildCategoryOptions('master-category');
+  // picker-cat1も同じ種類一覧で更新
+  const sel=document.getElementById('picker-cat1');
+  if(sel){
+    const current=sel.value;
+    const cats=getCatOrder();
+    sel.innerHTML='<option value="">すべて</option>'+
+      cats.map(c=>`<option${current===c?' selected':''}>${c}</option>`).join('');
+    buildPickerCat2Options(sel.value);
+  }
+}
+
 const CATEGORY_ICONS={'風呂':'🛁','洗濯':'👕','衛生':'🪥','掃除':'🧹','ペット':'🐾','食品':'🍱','家電':'💡','災害用':'🆘','他':'📦'};
 let products=[];
 let groups=[];
@@ -466,6 +494,7 @@ async function loadAll(){
     foodDetails=fd.details||{};
     orderSettings=od.settings||{};
     memoText=md.text||'';
+    updateAllCategorySelects();
     setSync('ok','スプレッドシート連携中');
     return true;
   }catch(e){
@@ -636,7 +665,7 @@ function renderStock(){
     el.innerHTML='<div class="card"><div class="empty">商品がまだ登録されていません</div></div>';
     return;
   }
-  const catOrder=['風呂','洗濯','衛生','掃除','ペット','食品','家電','災害用','他'];
+  const catOrder=getCatOrder();
   const byCategory={};
   products.forEach(p=>{
     const cat=p.category||'他';
@@ -753,7 +782,7 @@ function renderRegList(){
   if(!products.length){el.innerHTML='<div class="empty">商品がまだ登録されていません</div>';return;}
   const cat=document.getElementById('reg-filter-cat')?.value||'';
   const item=document.getElementById('reg-filter-item')?.value||'';
-  const catOrder=['風呂','洗濯','衛生','掃除','ペット','食品','家電','災害用','他'];
+  const catOrder=getCatOrder();
   let filtered=products
     .filter(p=>(!cat||p.category===cat)&&(!item||p.item===item))
     .sort((a,b)=>{
@@ -890,7 +919,7 @@ async function deleteProduct(jan){
 // ── 発注一覧 ──────────────────────────────────────────────────
 function renderOrderList(){
   const el=document.getElementById('order-list');
-  const catOrder=['風呂','洗濯','衛生','掃除','ペット','食品','家電','災害用','他'];
+  const catOrder=getCatOrder();
 
   // 発注ライン以下の品目を収集
   const lowItems=[];
@@ -1303,15 +1332,9 @@ function closePicker(){
 function buildPickerCat1Options(){
   const sel=document.getElementById('picker-cat1');
   const current=sel.value;
-  // 家用は category（種類）フィールド
-  const values=[...new Set(products.map(p=>p.category||'').filter(Boolean))].sort();
-  sel.innerHTML='<option value="">すべて</option>';
-  values.forEach(v=>{
-    const opt=document.createElement('option');
-    opt.value=v; opt.textContent=v;
-    if(v===current) opt.selected=true;
-    sel.appendChild(opt);
-  });
+  const cats=getCatOrder();
+  sel.innerHTML='<option value="">すべて</option>'+
+    cats.map(c=>`<option${current===c?' selected':''}>${c}</option>`).join('');
   buildPickerCat2Options(sel.value);
 }
 

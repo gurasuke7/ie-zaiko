@@ -425,10 +425,10 @@ const GAS_URL='https://script.google.com/macros/s/AKfycbw72eySIRa71eyz29H08On4MT
 const DEFAULT_CAT_ORDER = ['風呂','洗濯','衛生','掃除','ペット','食品','家電','災害用','他'];
 
 function getCatOrder(){
-  // groups・productsの両方から種類を収集してデフォルト順にマージ
-  const fromGroups = groups.map(g=>g.category).filter(Boolean);
+  // DEFAULT_CAT_ORDER + GASから取得した品目マスタの種類 + productsの種類 をマージ
+  const fromGAS = categories.filter(Boolean);
   const fromProducts = products.map(p=>p.category).filter(Boolean);
-  const all = [...new Set([...fromGroups, ...fromProducts])];
+  const all = [...new Set([...fromGAS, ...fromProducts])];
   const merged = [...DEFAULT_CAT_ORDER];
   all.forEach(c=>{ if(!merged.includes(c)) merged.push(c); });
   return merged;
@@ -480,13 +480,14 @@ function setSync(state,msg){
 async function loadAll(){
   setSync('loading','読み込み中...');
   try{
-    const [pd,gd,ud,fd,od,md]=await Promise.all([
+    const [pd,gd,ud,fd,od,md,cd]=await Promise.all([
       api({action:'getProducts'}),
       api({action:'getGroups'}),
       api({action:'getUsageDays'}),
       api({action:'getFoodDetail'}),
       api({action:'getOrderSettings'}),
-      api({action:'getMemo'})
+      api({action:'getMemo'}),
+      api({action:'getCategories'})
     ]);
     products=pd.products||[];
     groups=gd.groups||[];
@@ -494,6 +495,7 @@ async function loadAll(){
     foodDetails=fd.details||{};
     orderSettings=od.settings||{};
     memoText=md.text||'';
+    categories=cd.categories||[];
     updateAllCategorySelects();
     setSync('ok','スプレッドシート連携中');
     return true;
@@ -1233,6 +1235,7 @@ async function scanPhotoFile(input){
 let foodDetails = {}; // {jan: [{expiry, qty}]}
 let orderSettings = {}; // {item: 'pending'}
 let memoText = ''; // 買うものメモ（自由テキスト）
+let categories = []; // 品目マスタの種類一覧
 
 async function loadFoodDetails(){
   try{

@@ -277,6 +277,16 @@ h1{font-size:17px;font-weight:700;padding:12px 0 10px;text-align:center;color:#2
 
   <!-- 在庫一覧タブ -->
   <div id="tab-stock" style="display:none">
+    <div class="card" style="padding:10px 12px;margin-bottom:8px">
+      <div style="display:flex;gap:8px;align-items:center">
+        <select id="stock-filter-cat" onchange="onStockCatChange()" style="flex:1;font-size:13px;padding:7px 8px;border:1px solid #ddd;border-radius:8px;background:#fff;color:#333">
+          <option value="">すべての種類</option>
+        </select>
+        <select id="stock-filter-item" onchange="renderStock()" style="flex:1;font-size:13px;padding:7px 8px;border:1px solid #ddd;border-radius:8px;background:#fff;color:#333">
+          <option value="">すべての品目</option>
+        </select>
+      </div>
+    </div>
     <div id="stock-list"><div class="loading">読み込み中...</div></div>
   </div>
 
@@ -447,6 +457,7 @@ function updateAllCategorySelects(){
   buildCategoryOptions('reg-category');
   buildCategoryOptions('reg-filter-cat', true);
   buildCategoryOptions('master-category');
+  updateStockFilterCat();
   // picker-cat1も同じ種類一覧で更新
   const sel=document.getElementById('picker-cat1');
   if(sel){
@@ -462,6 +473,11 @@ const CATEGORY_ICONS={'風呂':'🛁','洗濯':'👕','衛生':'🪥','掃除':'
 let products=[];
 let groups=[];
 let usageDays={};
+let foodDetails={};
+let orderSettings={};
+let memoText='';
+let categories=[];
+let dataLoaded=false;
 let selectedUnit='個数';
 let html5QrCode=null;
 
@@ -477,7 +493,8 @@ function setSync(state,msg){
   document.getElementById('sync-msg').textContent=msg;
 }
 
-async function loadAll(){
+async function loadAll(force=false){
+  if(dataLoaded && !force) return true;  // キャッシュ済みなら即返す
   setSync('loading','読み込み中...');
   try{
     const [pd,gd,ud,fd,od,md,cd]=await Promise.all([
@@ -496,7 +513,9 @@ async function loadAll(){
     orderSettings=od.settings||{};
     memoText=md.text||'';
     categories=cd.categories||[];
+    dataLoaded=true;
     updateAllCategorySelects();
+    updateStockFilterCat();
     setSync('ok','スプレッドシート連携中');
     return true;
   }catch(e){
@@ -505,8 +524,52 @@ async function loadAll(){
   }
 }
 
+// 入出庫・棚卸修正後：商品+食品明細のみ再取得（高速）
+async function refreshProducts(){
+  setSync('loading','更新中...');
+  try{
+    const [pd,fd]=await Promise.all([
+      api({action:'getProducts'}),
+      api({action:'getFoodDetail'})
+    ]);
+    products=pd.products||[];
+    foodDetails=fd.details||{};
+    setSync('ok','スプレッドシート連携中');
+  }catch(e){
+    setSync('err','接続エラー');
+  }
+}
+
+// 在庫一覧フィルター：種類セレクト更新
+function updateStockFilterCat(){
+  const sel=document.getElementById('stock-filter-cat');
+  if(!sel) return;
+  const current=sel.value;
+  const cats=getCatOrder().filter(c=>products.some(p=>p.category===c));
+  sel.innerHTML='<option value="">すべての種類</option>'+
+    cats.map(c=>`<option${current===c?' selected':''}>${c}</option>`).join('');
+  updateStockFilterItem(sel.value);
+}
+
+// 在庫一覧フィルター：品目セレクト更新（種類連動）
+function updateStockFilterItem(cat){
+  const sel=document.getElementById('stock-filter-item');
+  if(!sel) return;
+  const items=[...new Set(
+    products.filter(p=>!cat||p.category===cat).map(p=>p.item).filter(Boolean)
+  )].sort();
+  sel.innerHTML='<option value="">すべての品目</option>'+
+    items.map(i=>`<option>${i}</option>`).join('');
+}
+
+function onStockCatChange(){
+  const cat=document.getElementById('stock-filter-cat').value;
+  updateStockFilterItem(cat);
+  renderStock();
+}
+
 async function refreshAll(){
-  await loadAll();
+  await loadAll(true);
   const idx=Array.from(document.querySelectorAll('.tab')).findIndex(e=>e.classList.contains('active'));
   if(idx===1)renderStock();
   if(idx===2){renderOrderList();renderMemoTextarea();}
@@ -527,6 +590,7 @@ function showTab(t){
   if(t==='log')loadAndRenderLog();
   if(t==='reg'){loadAll().then(()=>{renderRegList();filterItems();updateRegItemFilter();});}
   if(t==='master'){loadAll().then(renderGroupList);}
+  // ※loadAllはキャッシュ済みなら即返すため、タブ切替は高速
   if(t!=='scan')stopCam();
 }
 
@@ -651,7 +715,7 @@ async function doRecord(type){
       document.getElementById('expiry-date').value='';
       document.getElementById('preview').style.display='none';
       setSelectedBox(null);
-      await loadAll();
+      await refreshProducts();  // 商品+食品明細のみ再取得（高速）
       renderStock();
     }
   }catch(e){
@@ -667,13 +731,18 @@ function renderStock(){
     el.innerHTML='<div class="card"><div class="empty">商品がまだ登録されていません</div></div>';
     return;
   }
+  // フィルター値取得
+  const filterCat=(document.getElementById('stock-filter-cat')||{}).value||'';
+  const filterItem=(document.getElementById('stock-filter-item')||{}).value||'';
   const catOrder=getCatOrder();
   const byCategory={};
-  products.forEach(p=>{
-    const cat=p.category||'他';
-    if(!byCategory[cat])byCategory[cat]=[];
-    byCategory[cat].push(p);
-  });
+  products
+    .filter(p=>(!filterCat||p.category===filterCat)&&(!filterItem||(p.item||'')===(filterItem)))
+    .forEach(p=>{
+      const cat=p.category||'他';
+      if(!byCategory[cat])byCategory[cat]=[];
+      byCategory[cat].push(p);
+    });
 
   let html='';
   catOrder.forEach(cat=>{
@@ -838,7 +907,7 @@ async function saveOrderLine(category,item){
     const data=await api({action:'updateGroupOrderLine',category,item,orderLine:val});
     if(data.error){toast(data.error,'err');}
     else{toast(item+'の発注ラインを'+val+'個に設定しました','in');}
-    await loadAll();
+    await loadAll(true);
     renderGroupList();
   }catch(e){
     toast('通信エラーが発生しました','err');
@@ -858,7 +927,7 @@ async function addGroup(){
     toast(item+'を登録しました','in');
     document.getElementById('master-item').value='';
     document.getElementById('master-orderline').value='1';
-    await loadAll();
+    await loadAll(true);
     renderGroupList();
     filterItems();
   }catch(e){
@@ -895,7 +964,7 @@ async function registerProduct(){
     document.getElementById('reg-has-expiry').checked=false;
     document.getElementById('reg-expiry').value='';
     document.getElementById('reg-expiry-row').style.display='none';
-    await loadAll();
+    await loadAll(true);
     renderRegList();
   }catch(e){
     toast('通信エラーが発生しました','err');
@@ -910,7 +979,7 @@ async function deleteProduct(jan){
     const data=await api({action:'deleteProduct',jan});
     if(data.error){toast(data.error,'err');return;}
     toast('削除しました','err');
-    await loadAll();
+    await loadAll(true);
     renderRegList();
   }catch(e){
     toast('通信エラーが発生しました','err');
@@ -1470,7 +1539,7 @@ async function doAdjust() {
     else {
       toast(p.name + ' 棚卸修正: ' + p.stock + '→' + newVal + '個', 'in');
       closeAdjust();
-      await loadAll();
+      await refreshProducts();  // 商品+食品明細のみ再取得
       renderStock();
     }
   } catch(e) {

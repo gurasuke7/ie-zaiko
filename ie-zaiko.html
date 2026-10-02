@@ -292,13 +292,13 @@ h1{font-size:17px;font-weight:700;padding:12px 0 10px;text-align:center;color:#2
 
   <!-- 発注タブ -->
   <div id="tab-order" style="display:none">
-    <div id="order-list"><div class="loading">読み込み中...</div></div>
-    <div class="card" style="margin-top:8px">
+    <div class="card">
       <div class="section-label">買うものメモ</div>
       <textarea class="memo-textarea" id="memo-textarea" placeholder="買うものを自由に入力&#13;&#10;例）&#13;&#10;焼きそば&#13;&#10;食パン&#13;&#10;牛乳" oninput="onMemoInput()"></textarea>
       <button class="memo-save-btn" id="memo-save-btn" onclick="saveMemo()">保存</button>
       <div class="memo-saved" id="memo-saved"></div>
     </div>
+    <div id="order-list" style="margin-top:8px"><div class="loading">読み込み中...</div></div>
   </div>
 
   <!-- 履歴タブ -->
@@ -497,9 +497,10 @@ async function loadAll(force=false){
   if(dataLoaded && !force) return true;  // キャッシュ済みなら即返す
   setSync('loading','読み込み中...');
   try{
-    const [pd,gd,fd,od,md,cd]=await Promise.all([
+    const [pd,gd,ud,fd,od,md,cd]=await Promise.all([
       api({action:'getProducts'}),
       api({action:'getGroups'}),
+      api({action:'getUsageDays'}),
       api({action:'getFoodDetail'}),
       api({action:'getOrderSettings'}),
       api({action:'getMemo'}),
@@ -507,6 +508,7 @@ async function loadAll(force=false){
     ]);
     products=pd.products||[];
     groups=gd.groups||[];
+    usageDays=ud.usageDays||{};
     foodDetails=fd.details||{};
     orderSettings=od.settings||{};
     memoText=md.text||'';
@@ -515,8 +517,6 @@ async function loadAll(force=false){
     updateAllCategorySelects();
     updateStockFilterCat();
     setSync('ok','スプレッドシート連携中');
-    // getUsageDaysは重いので遅延取得（失敗しても表示に影響しない）
-    api({action:'getUsageDays'}).then(ud=>{ usageDays=ud.usageDays||{}; }).catch(()=>{});
     return true;
   }catch(e){
     setSync('err','接続エラー');
